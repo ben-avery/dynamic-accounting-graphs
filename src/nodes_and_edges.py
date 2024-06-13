@@ -13,8 +13,8 @@ class Node():
 
 class NodeEmbedding():
     def __init__(self, dimension):
-        self.source_value = np.zeros(dimension)
-        self.dest_value = np.zeros(dimension)
+        self.source_value = np.random.uniform(0,1,dimension)
+        self.dest_value = np.random.uniform(0,1,dimension)
 
 
 class EdgeEmbedder():
@@ -33,21 +33,21 @@ class EdgeEmbedder():
         return np.hstack((x_i, x_j))
 
 
-class EdgeSimilarity():
+class EdgeComparer():
     def __init__(self, dimension, mode='matrix'):
         if mode == 'matrix':
-            self.matrix = np.zeros((dimension, dimension))
-            self.return_similarity = self.matrix_similarity
+            self.matrix = np.random.uniform(-1,1,(dimension, dimension))
+            self.compare_edges = self.matrix_form
         elif mode == 'vector':
-            self.vector = np.zeros(dimension)
-            self.return_similarity = self.vector_similarity
+            self.vector = np.random.uniform(-1,1,dimension)
+            self.compare_edges = self.vector_form
         else:
             raise ValueError(
-                f'Edge similarity mode {mode} is not recognised'
+                f'Edge comparer mode {mode} is not recognised'
             )
 
-    def matrix_similarity(self, e_i, e_j):
+    def matrix_form(self, e_i, e_j):
         return e_i.T @ self.matrix @ e_j
 
-    def vector_similarity(self, e_i, e_j):
+    def vector_form(self, e_i, e_j):
         return e_i.T @ np.multiply(self.vector, e_j)
