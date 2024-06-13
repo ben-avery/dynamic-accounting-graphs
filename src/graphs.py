@@ -1,6 +1,7 @@
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
 from excitement import Excitement
 from scipy.stats import poisson
+from numpy import log
 
 
 class DynamicAccountingGraph():
@@ -9,6 +10,8 @@ class DynamicAccountingGraph():
                  weibull_weight_generator_mode='matrix',
                  weibull_alpha_generator_mode='matrix',
                  weibull_beta_generator_mode='matrix'):
+        self.time = 0
+
         self.nodes = []
         for account in accounts:
             node = Node(
@@ -43,9 +46,8 @@ class DynamicAccountingGraph():
         )
 
         self.edge_log = []
-        self.edge_intensity_log = []
 
-        self.time = 0
+        self.new_edges = dict()
 
         self.possible_excitees = dict()
         self.excitment_threshold = 0.01
@@ -132,15 +134,23 @@ class DynamicAccountingGraph():
             if len(excites) > 0
         }
 
+        # Reset the new edges counter
+        self.new_edges = dict()
+
     def add_edge(self, i, j, edge_time, edge_weight):
         # Get the node embeddings
         x_i = self.nodes[i].embeddings.source_value
         x_j = self.nodes[i].embeddings.dest_value
 
-        # Get the edge embedding
-        edge_embedding = self.edge_embedder.embed_edge(x_i, x_j)
+        # Save the edge
         self.edge_log.append(
-            (i, j, edge_time, edge_weight, edge_embedding))
+            (i, j, edge_time, edge_weight))
+
+        # Add the new edge to today's counter
+        if (i, j) in self.new_edges:
+            self.new_edges[(i, j)] += 1
+        else:
+            self.new_edges[(i, j)] = 1
 
         # Record any excitees
         for excitee_nodes, excitee_parameters in self.possible_excitees[(i,j)].items():
@@ -178,3 +188,20 @@ class DynamicAccountingGraph():
             k=count,
             mu=self.edge_intensity(i, j)
         )
+
+    def day_log_probability(self):
+        log_probability = 0
+        for i in range(self.count_nodes):
+            for j in range(self.count_nodes):
+                if (i, j) in self.new_edges:
+                    count = self.new_edges[(i, j)]
+                else:
+                    count = 0
+                
+                log_probability += log(
+                    self.edge_probability(
+                        i, j, count
+                    )
+                    )
+
+        return log_probability
