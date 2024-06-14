@@ -521,6 +521,7 @@ class DynamicAccountingGraph():
         self.new_edges = dict()
 
         self.possible_excitees = dict()
+        self.current_excitees = dict()
 
         # Apply gradient updates
         self.apply_gradient_updates()
