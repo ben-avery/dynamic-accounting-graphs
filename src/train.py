@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 
 
 def train(graph, edges_by_day, last_day):
-    iterations = 100
+    iterations = 1000
 
-    losses = [0 in range(iterations)]
+    losses = [0.0 for _ in range(iterations)]
     for iteration in tqdm(range(iterations)):
         log_probability = 0
 
@@ -21,7 +21,7 @@ def train(graph, edges_by_day, last_day):
             log_probability += graph.day_log_probability()
             graph.increment_time()
 
-        losses.append(log_probability)
+        losses[iteration] = log_probability
         graph.reset()
 
     # Plot losses
@@ -45,7 +45,8 @@ if __name__ == '__main__':
 
     graph = DynamicAccountingGraph(
         accounts=[sales_account, debtors_account, bank_account],
-        node_dimension=16
+        node_dimension=16,
+        learning_rate=0.0001
     )
 
     edges_by_day = {

@@ -17,8 +17,11 @@ class DynamicAccountingGraph():
                  edge_embedder_mode='concatenate',
                  weibull_weight_generator_mode='matrix',
                  weibull_alpha_generator_mode='matrix',
-                 weibull_beta_generator_mode='matrix'):
+                 weibull_beta_generator_mode='matrix',
+                 learning_rate=0.0001):
         self.time = 0
+
+        self.learning_rate = learning_rate
 
         self.nodes = []
         self.node_dimension = node_dimension
@@ -27,6 +30,7 @@ class DynamicAccountingGraph():
                 name=account.name,
                 opening_balance=account.balance,
                 dimension=node_dimension,
+                learning_rate=self.learning_rate,
                 meta_data={
                     'account_number': account.number,
                     'mapping': account.mapping
@@ -43,14 +47,17 @@ class DynamicAccountingGraph():
 
         self.weibull_weight_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
+            learning_rate=self.learning_rate,
             mode=weibull_weight_generator_mode
         )
         self.weibull_alpha_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
+            learning_rate=self.learning_rate,
             mode=weibull_alpha_generator_mode
         )
         self.weibull_beta_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
+            learning_rate=self.learning_rate,
             mode=weibull_beta_generator_mode
         )
 
