@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 
 
 def train(graph, edges_by_day, last_day):
-    losses = [0 in range(100)]
-    for iteration in tqdm(range(100)):
-        graph.reset()
+    iterations = 100
+
+    losses = [0 in range(iterations)]
+    for iteration in tqdm(range(iterations)):
         log_probability = 0
 
         for day, edges in edges_by_day.items():
@@ -21,6 +22,7 @@ def train(graph, edges_by_day, last_day):
             graph.increment_time()
 
         losses.append(log_probability)
+        graph.reset()
 
     # Plot losses
     plt.plot(losses)

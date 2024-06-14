@@ -2,21 +2,24 @@ import numpy as np
 
 
 class Node():
-    def __init__(self, name, opening_balance, dimension, meta_data=None):
+    def __init__(self, name, opening_balance, dimension,
+                 learning_rate=0.0001, meta_data=None):
         self.name = name
         self.opening_balance = opening_balance
         self.dimension = dimension
         self.embeddings = NodeEmbedding(dimension=dimension)
         self.meta_data = meta_data
 
+        self.learning_rate = learning_rate
+
         self.source_pending_updates = np.zeros(self.dimension)
         self.dest_pending_updates = np.zeros(self.dimension)
 
     def add_source_gradient_update(self, gradient_update):
-        self.source_pending_updates += gradient_update
+        self.source_pending_updates += self.learning_rate*gradient_update
 
     def add_dest_gradient_update(self, gradient_update):
-        self.dest_pending_updates += gradient_update
+        self.dest_pending_updates += self.learning_rate*gradient_update
 
     def apply_gradient_updates(self):
         self.embeddings.source_value += self.source_pending_updates
@@ -28,8 +31,8 @@ class Node():
 
 class NodeEmbedding():
     def __init__(self, dimension):
-        self.source_value = np.random.uniform(0, 1, dimension)
-        self.dest_value = np.random.uniform(0, 1, dimension)
+        self.source_value = np.random.uniform(-1, 1, dimension)
+        self.dest_value = np.random.uniform(-1, 1, dimension)
 
 
 class EdgeEmbedder():
@@ -49,13 +52,14 @@ class EdgeEmbedder():
 
 
 class EdgeComparer():
-    def __init__(self, dimension, mode='matrix'):
+    def __init__(self, dimension, learning_rate=0.0001,
+                 mode='matrix'):
         self.dimension = dimension
 
         if mode == 'matrix':
             self.matrix = \
                 np.random.uniform(
-                    0, 1, (self.dimension, self.dimension)
+                    -1, 1, (self.dimension, self.dimension)
                 )
             self.compare_edges = self.matrix_form
         else:
@@ -63,15 +67,16 @@ class EdgeComparer():
                 f'Edge comparer mode {mode} is not recognised'
             )
 
+        self.learning_rate = learning_rate
         self.pending_updates = np.zeros(
             (self.dimension, self.dimension)
             )
 
     def matrix_form(self, e_i, e_j):
-        return e_i.T @ self.matrix @ e_j
+        return max(0.0001, e_i.T @ self.matrix @ e_j)
 
     def add_gradient_update(self, gradient_update):
-        self.pending_updates += gradient_update
+        self.pending_updates += self.learning_rate*gradient_update
 
     def apply_gradient_updates(self):
         self.matrix += self.pending_updates
