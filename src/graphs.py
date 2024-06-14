@@ -101,6 +101,7 @@ class DynamicAccountingGraph():
                             self.weibull_weight_generator.compare_edges(
                                 excitor_edge_embedding, excitee_edge_embedding
                             )
+                        lin_val_weight = self.weibull_weight_generator.last_linear_value
 
                         # If there is sufficient connection, add as an excitee
                         if weibull_weight > self.excitment_threshold:
@@ -108,17 +109,20 @@ class DynamicAccountingGraph():
                                 self.weibull_alpha_generator.compare_edges(
                                     excitor_edge_embedding, excitee_edge_embedding
                                 )
+                            lin_val_alpha = self.weibull_alpha_generator.last_linear_value
                             weibull_beta = \
                                 self.weibull_beta_generator.compare_edges(
                                     excitor_edge_embedding, excitee_edge_embedding
                                 )
+                            lin_val_beta = self.weibull_beta_generator.last_linear_value
 
                             self.possible_excitees[
                                 (excitor_i, excitor_j)
                                 ][
                                     (excitee_i, excitee_j)
                                     ] = \
-                                        (weibull_weight, weibull_alpha, weibull_beta)
+                                        ((weibull_weight, weibull_alpha, weibull_beta),
+                                         (lin_val_weight, lin_val_alpha, lin_val_beta))
 
     def increment_time(self):
         self.time += 1
@@ -161,7 +165,9 @@ class DynamicAccountingGraph():
 
         # Record any excitees
         for excitee_nodes, excitee_parameters in self.possible_excitees[(i,j)].items():
-            weibull_weight, weibull_alpha, weibull_beta = excitee_parameters
+            weibull_params, lin_val_params = excitee_parameters
+            weibull_weight, weibull_alpha, weibull_beta = weibull_params
+            lin_val_weight, lin_val_alpha, lin_val_beta = lin_val_params
 
             if excitee_nodes not in self.current_excitees:
                 self.current_excitees[excitee_nodes] = []
@@ -171,6 +177,9 @@ class DynamicAccountingGraph():
                     weibull_weight=weibull_weight,
                     weibull_alpha=weibull_alpha,
                     weibull_beta=weibull_beta,
+                    lin_val_weight=lin_val_weight,
+                    lin_val_alpha=lin_val_alpha,
+                    lin_val_beta=lin_val_beta,
                     source_nodes=(i,j),
                     dest_nodes=excitee_nodes,
                     alive_threshold=self.excitment_threshold
@@ -198,6 +207,15 @@ class DynamicAccountingGraph():
                  for excite in self.current_excitees[(i,j)]]
             self.gradient_log['weights'] = \
                 [excite.weibull_weight
+                 for excite in self.current_excitees[(i,j)]]
+            self.gradient_log['lin_alphas'] = \
+                [excite.lin_val_alpha
+                 for excite in self.current_excitees[(i,j)]]
+            self.gradient_log['lin_betas'] = \
+                [excite.lin_val_beta
+                 for excite in self.current_excitees[(i,j)]]
+            self.gradient_log['lin_weights'] = \
+                [excite.lin_val_weight
                  for excite in self.current_excitees[(i,j)]]
             self.gradient_log['times'] = \
                 [excite.time
@@ -293,45 +311,12 @@ class DynamicAccountingGraph():
         # Get the edge embedding
         e_kl = self.edge_embedder.embed_edge(x_k, x_l)
 
-        delAlpha_delI = \
-            calc_delComparer_delI(
-                matrix=self.weibull_alpha_generator.matrix,
-                e_kl=e_kl,
-                node_dimension=self.node_dimension
-            )
-        delBeta_delI = \
-            calc_delComparer_delI(
-                matrix=self.weibull_beta_generator.matrix,
-                e_kl=e_kl,
-                node_dimension=self.node_dimension
-            )
-        delWeight_delI = \
-            calc_delComparer_delI(
-                matrix=self.weibull_weight_generator.matrix,
-                e_kl=e_kl,
-                node_dimension=self.node_dimension
-            )
-
-        delAlpha_delJ = \
-            calc_delComparer_delJ(
-                matrix=self.weibull_alpha_generator.matrix,
-                e_kl=e_kl,
-                node_dimension=self.node_dimension
-            )
-        delBeta_delJ = \
-            calc_delComparer_delJ(
-                matrix=self.weibull_beta_generator.matrix,
-                e_kl=e_kl,
-                node_dimension=self.node_dimension
-            )
-        delWeight_delJ = \
-            calc_delComparer_delJ(
-                matrix=self.weibull_weight_generator.matrix,
-                e_kl=e_kl,
-                node_dimension=self.node_dimension
-            )
-
         for excite_index, (i, j) in enumerate(self.gradient_log['source_nodes']):
+            # Get linear values
+            lin_val_alpha = self.gradient_log['lin_alphas'][excite_index]
+            lin_val_beta = self.gradient_log['lin_betas'][excite_index]
+            lin_val_weight = self.gradient_log['lin_weights'][excite_index]
+
             # Get the node embeddings
             node_i = self.nodes[i]
             x_i = node_i.embeddings.dest_value
@@ -341,20 +326,67 @@ class DynamicAccountingGraph():
             # Get the edge embedding
             e_ij = self.edge_embedder.embed_edge(x_i, x_j)
 
+            delAlpha_delI = \
+                calc_delComparer_delI(
+                    linear_value=lin_val_alpha,
+                    matrix=self.weibull_alpha_generator.matrix,
+                    e_kl=e_kl,
+                    node_dimension=self.node_dimension
+                )
+            delBeta_delI = \
+                calc_delComparer_delI(
+                    linear_value=lin_val_beta,
+                    matrix=self.weibull_beta_generator.matrix,
+                    e_kl=e_kl,
+                    node_dimension=self.node_dimension
+                )
+            delWeight_delI = \
+                calc_delComparer_delI(
+                    linear_value=lin_val_weight,
+                    matrix=self.weibull_weight_generator.matrix,
+                    e_kl=e_kl,
+                    node_dimension=self.node_dimension
+                )
+
+            delAlpha_delJ = \
+                calc_delComparer_delJ(
+                    linear_value=lin_val_alpha,
+                    matrix=self.weibull_alpha_generator.matrix,
+                    e_kl=e_kl,
+                    node_dimension=self.node_dimension
+                )
+            delBeta_delJ = \
+                calc_delComparer_delJ(
+                    linear_value=lin_val_beta,
+                    matrix=self.weibull_beta_generator.matrix,
+                    e_kl=e_kl,
+                    node_dimension=self.node_dimension
+                )
+            delWeight_delJ = \
+                calc_delComparer_delJ(
+                    linear_value=lin_val_weight,
+                    matrix=self.weibull_weight_generator.matrix,
+                    e_kl=e_kl,
+                    node_dimension=self.node_dimension
+                )
+
             delAlpha_delK = \
                 calc_delComparer_delK(
+                    linear_value=lin_val_alpha,
                     matrix=self.weibull_alpha_generator.matrix,
                     e_ij=e_ij,
                     node_dimension=self.node_dimension
                 )
             delBeta_delK = \
                 calc_delComparer_delK(
+                    linear_value=lin_val_beta,
                     matrix=self.weibull_beta_generator.matrix,
                     e_ij=e_ij,
                     node_dimension=self.node_dimension
                 )
             delWeight_delK = \
                 calc_delComparer_delK(
+                    linear_value=lin_val_weight,
                     matrix=self.weibull_weight_generator.matrix,
                     e_ij=e_ij,
                     node_dimension=self.node_dimension
@@ -362,25 +394,43 @@ class DynamicAccountingGraph():
 
             delAlpha_delL = \
                 calc_delComparer_delL(
+                    linear_value=lin_val_alpha,
                     matrix=self.weibull_alpha_generator.matrix,
                     e_ij=e_ij,
                     node_dimension=self.node_dimension
                 )
             delBeta_delL = \
                 calc_delComparer_delL(
+                    linear_value=lin_val_beta,
                     matrix=self.weibull_beta_generator.matrix,
                     e_ij=e_ij,
                     node_dimension=self.node_dimension
                 )
             delWeight_delL = \
                 calc_delComparer_delL(
+                    linear_value=lin_val_weight,
                     matrix=self.weibull_weight_generator.matrix,
                     e_ij=e_ij,
                     node_dimension=self.node_dimension
                 )
 
-            delComparerdelMatrix = \
+            delAlphaComparerdelMatrix = \
                 calc_delComparer_delMatrix(
+                    linear_value=lin_val_alpha,
+                    e_ij=e_ij,
+                    e_kl=e_kl,
+                )
+
+            delBetaComparerdelMatrix = \
+                calc_delComparer_delMatrix(
+                    linear_value=lin_val_beta,
+                    e_ij=e_ij,
+                    e_kl=e_kl,
+                )
+
+            delWeightComparerdelMatrix = \
+                calc_delComparer_delMatrix(
+                    linear_value=lin_val_weight,
                     e_ij=e_ij,
                     e_kl=e_kl,
                 )
@@ -437,21 +487,21 @@ class DynamicAccountingGraph():
             self.weibull_weight_generator.add_gradient_update(
                 delP_delIntensity *
                 delIntensity_delAlpha[excite_index] *
-                delComparerdelMatrix
+                delWeightComparerdelMatrix
             )
 
             # Alpha matrix
-            self.weibull_weight_generator.add_gradient_update(
+            self.weibull_alpha_generator.add_gradient_update(
                 delP_delIntensity *
                 delIntensity_delBeta[excite_index] *
-                delComparerdelMatrix
+                delAlphaComparerdelMatrix
             )
 
             # Beta matrix
-            self.weibull_weight_generator.add_gradient_update(
+            self.weibull_beta_generator.add_gradient_update(
                 delP_delIntensity *
                 delIntensity_delWeight[excite_index] *
-                delComparerdelMatrix
+                delBetaComparerdelMatrix
             )
 
         self.gradient_log = dict()

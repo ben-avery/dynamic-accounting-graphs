@@ -67,13 +67,21 @@ class EdgeComparer():
                 f'Edge comparer mode {mode} is not recognised'
             )
 
+        self.last_linear_value = None
+
         self.learning_rate = learning_rate
         self.pending_updates = np.zeros(
             (self.dimension, self.dimension)
             )
 
     def matrix_form(self, e_i, e_j):
-        return max(0.0001, e_i.T @ self.matrix @ e_j)
+        linear_value = e_i.T @ self.matrix @ e_j
+        self.last_linear_value = linear_value
+
+        if linear_value < 0:
+            return np.exp(linear_value)
+        else:
+            return np.log(linear_value + 1) + 1
 
     def add_gradient_update(self, gradient_update):
         self.pending_updates += self.learning_rate*gradient_update

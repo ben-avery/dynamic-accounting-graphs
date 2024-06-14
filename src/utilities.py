@@ -57,21 +57,38 @@ def calc_delIntensity_delWeight(time, alpha, beta):
     return discrete_weibull_pmf(time, alpha, beta)
 
 
-def calc_delComparer_delI(matrix, e_kl, node_dimension):
-    return matrix[:node_dimension,:] @ e_kl
+def calc_delComparer_delI(linear_value, matrix, e_kl, node_dimension):
+    return \
+        log_exp_multiplier(linear_value) * \
+        (matrix[:node_dimension,:] @ e_kl)
 
 
-def calc_delComparer_delJ(matrix, e_kl, node_dimension):
-    return matrix[node_dimension:node_dimension*2,:] @ e_kl
+def calc_delComparer_delJ(linear_value, matrix, e_kl, node_dimension):
+    return \
+        log_exp_multiplier(linear_value) * \
+        (matrix[node_dimension:node_dimension*2,:] @ e_kl)
 
 
-def calc_delComparer_delK(matrix, e_ij, node_dimension):
-    return e_ij @ matrix[:,:node_dimension]
+def calc_delComparer_delK(linear_value, matrix, e_ij, node_dimension):
+    return \
+        log_exp_multiplier(linear_value) * \
+        (e_ij @ matrix[:,:node_dimension])
 
 
-def calc_delComparer_delL(matrix, e_ij, node_dimension):
-    return e_ij @ matrix[:,node_dimension:node_dimension*2] 
+def calc_delComparer_delL(linear_value, matrix, e_ij, node_dimension):
+    return \
+        log_exp_multiplier(linear_value) * \
+        (e_ij @ matrix[:,node_dimension:node_dimension*2])
 
 
-def calc_delComparer_delMatrix(e_ij, e_kl):
-    return e_ij * e_kl.reshape((e_kl.size, 1))
+def calc_delComparer_delMatrix(linear_value, e_ij, e_kl):
+    return \
+        log_exp_multiplier(linear_value) * \
+        (e_ij * e_kl.reshape((e_kl.size, 1)))
+
+
+def log_exp_multiplier(linear_value):
+    if linear_value < 0:
+        return np.exp(linear_value)
+    else:
+        return 1/(linear_value+1)

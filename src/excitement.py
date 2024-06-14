@@ -3,6 +3,7 @@ from utilities import part_weibull
 
 class Excitement():
     def __init__(self, weibull_weight, weibull_alpha, weibull_beta,
+                 lin_val_weight, lin_val_alpha, lin_val_beta,
                  source_nodes, dest_nodes,
                  alive_threshold=0.01):
         self.alive = True
@@ -14,6 +15,10 @@ class Excitement():
         self.weibull_weight = weibull_weight
         self.weibull_alpha = weibull_alpha
         self.weibull_beta = weibull_beta
+
+        self.lin_val_weight = lin_val_weight
+        self.lin_val_alpha = lin_val_alpha
+        self.lin_val_beta = lin_val_beta
 
         self.prob_parts = (
             self.prob_part(self.time),
