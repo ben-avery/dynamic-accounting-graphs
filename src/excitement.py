@@ -3,9 +3,13 @@ from utilities import part_weibull
 
 class Excitement():
     def __init__(self, weibull_weight, weibull_alpha, weibull_beta,
+                 source_nodes, dest_nodes,
                  alive_threshold=0.01):
         self.alive = True
         self.time = 0
+
+        self.source_nodes = source_nodes
+        self.dest_nodes = dest_nodes
 
         self.weibull_weight = weibull_weight
         self.weibull_alpha = weibull_alpha
