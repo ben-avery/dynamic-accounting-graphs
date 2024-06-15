@@ -1,5 +1,6 @@
 dynamic-accounting-graphs.code-workspace
 /experimenting
+/milestones
 *__pycache__/
 .vscode/
 .pytest_cache/

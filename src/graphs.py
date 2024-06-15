@@ -1,3 +1,5 @@
+"""Main module for the Dynamic Accounting Graph class
+"""
 from scipy.stats import poisson
 from numpy import log
 
@@ -13,16 +15,46 @@ from utilities import (
 
 
 class DynamicAccountingGraph():
+    """Class for a Dynamic Accounting Graph
+    """
     def __init__(self, accounts, node_dimension,
                  edge_embedder_mode='concatenate',
                  weibull_weight_generator_mode='matrix',
                  weibull_alpha_generator_mode='matrix',
                  weibull_beta_generator_mode='matrix',
                  learning_rate=0.0001):
+        """Initialise the class
+
+        Args:
+            accounts (list): A list of Account object (with attributes 
+                for name, balance, number and mapping)
+            node_dimension (int): The dimension for the node embeddings
+            edge_embedder_mode (str, optional): The method of combining 
+                node embeddings to get edge embeddings. Defaults to
+                'concatenate'.
+            weibull_weight_generator_mode (str, optional): The method of
+                combining two edge embeddings to get a real-valued
+                parameter for the weight of a discrete Weibull distribution.
+                Defaults to 'matrix'.
+            weibull_alpha_generator_mode (str, optional): The method of
+                combining two edge embeddings to get a real-valued
+                parameter for the alpha parameter of a discrete Weibull
+                distribution (which controls the likely time between
+                two edges exciting each other). Defaults to 'matrix'.
+            weibull_beta_generator_mode (str, optional): The method of
+                combining two edge embeddings to get a real-valued
+                parameter for the beta parameter of a discrete Weibull
+                distribution (which controls the spread of likely times
+                between two edges exciting each other). Defaults
+                to 'matrix'.
+            learning_rate (float, optional): The learning rate for the
+                gradient ascent algorithm. Defaults to 0.0001.
+        """
         self.time = 0
 
         self.learning_rate = learning_rate
 
+        # Create the nodes with random embeddings
         self.nodes = []
         self.node_dimension = node_dimension
         for account in accounts:
@@ -40,11 +72,16 @@ class DynamicAccountingGraph():
             self.nodes.append(node)
         self.count_nodes = len(self.nodes)
 
+        # Create an edge embedder which turns two
+        # node embeddings into an embedding for an
+        # edge between the nodes
         self.edge_embedder = EdgeEmbedder(
             input_dimension=node_dimension,
             mode=edge_embedder_mode
         )
 
+        # Create generators for the Weibull distribution
+        # parameters
         self.weibull_weight_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
             learning_rate=self.learning_rate,
@@ -61,19 +98,31 @@ class DynamicAccountingGraph():
             mode=weibull_beta_generator_mode
         )
 
+        # Create attributes to record all edges and any
+        # new edges for this day
         self.edge_log = []
-
         self.new_edges = dict()
 
+        # Store any pairs of edges which will excite each
+        # other based on the weight of the corresponding
+        # Weibull distribution
         self.possible_excitees = dict()
         self.excitment_threshold = 0.01
-
-        self.current_excitees = dict()
         self.find_excitors()
 
+        # Create an attribute to store any edges that are
+        # currently excited by previous edges
+        self.current_excitees = dict()
+
+        # Create an attribute to store gradients and values
+        # for the gradient ascent algorithm
         self.gradient_log = dict()
 
     def find_excitors(self):
+        """Find any pairs of edges which will excite each
+        other based on the weight of the corresponding
+        Weibull distribution
+        """
         # Clear the current excitors
         self.possible_excitees = dict()
 
@@ -103,26 +152,35 @@ class DynamicAccountingGraph():
                         excitee_edge_embedding = \
                             self.edge_embedder.embed_edge(excitee_x_i, excitee_x_j)
 
-                        # Get the Weibull weight
+                        # Get the Weibull weight (the total probability of the excitor
+                        # edge exciting the excitee edge)
                         weibull_weight = \
                             self.weibull_weight_generator.compare_edges(
                                 excitor_edge_embedding, excitee_edge_embedding
                             )
+                        # Extract the pre-scaled value from the calculation, for use
+                        # in the gradient ascent algorithm
                         lin_val_weight = self.weibull_weight_generator.last_linear_value
 
-                        # If there is sufficient connection, add as an excitee
+                        # If there is sufficient probability, add as a possible excitee
                         if weibull_weight > self.excitment_threshold:
+                            # Calculate the Weibull parameters (characterising the average
+                            # time to excitation, and the spread of likely times to
+                            # excitation)
                             weibull_alpha = \
                                 self.weibull_alpha_generator.compare_edges(
                                     excitor_edge_embedding, excitee_edge_embedding
                                 )
-                            lin_val_alpha = self.weibull_alpha_generator.last_linear_value
                             weibull_beta = \
                                 self.weibull_beta_generator.compare_edges(
                                     excitor_edge_embedding, excitee_edge_embedding
                                 )
+                            # Extract the pre-scaled value from the calculation, for use
+                            # in the gradient ascent algorithm
+                            lin_val_alpha = self.weibull_alpha_generator.last_linear_value
                             lin_val_beta = self.weibull_beta_generator.last_linear_value
 
+                            # Store the potential pairs, and the requisite parameters
                             self.possible_excitees[
                                 (excitor_i, excitor_j)
                                 ][
@@ -132,6 +190,10 @@ class DynamicAccountingGraph():
                                          (lin_val_weight, lin_val_alpha, lin_val_beta))
 
     def increment_time(self):
+        """Advance to the next day
+        """
+
+        # Move on the day counter
         self.time += 1
 
         # Increment time for the excitees
@@ -139,7 +201,8 @@ class DynamicAccountingGraph():
             for excite in excites:
                 excite.increment_time()
 
-        # Remove any dead excitees
+        # Remove any dead excitees (where the remaining probability
+        # of an excitement is below the threshold)
         self.current_excitees = {
             excitee: [
                 excite
@@ -149,7 +212,8 @@ class DynamicAccountingGraph():
             for excitee, excites in self.current_excitees.items()
         }
 
-        # Remove any empty excitees
+        # Remove any empty excitees (i.e. any pairs of edges where
+        # there are no more alive 'excites')
         self.current_excitees = {
             excitee: excites
             for excitee, excites in self.current_excitees.items()
@@ -159,10 +223,17 @@ class DynamicAccountingGraph():
         # Reset the new edges counter
         self.new_edges = dict()
 
-    def add_edge(self, i, j, edge_time, edge_weight):
+    def add_edge(self, i, j, edge_weight):
+        """Add a new edge to the graph
+
+        Args:
+            i (int): The index of the source node
+            j (int): The index of the destination node
+            edge_weight (float): The monetary value of the new edge
+        """
         # Save the edge
         self.edge_log.append(
-            (i, j, edge_time, edge_weight))
+            (i, j, self.time, edge_weight))
 
         # Add the new edge to today's counter
         if (i, j) in self.new_edges:
@@ -170,15 +241,19 @@ class DynamicAccountingGraph():
         else:
             self.new_edges[(i, j)] = 1
 
-        # Record any excitees
+        # Record any edges that are excited by this edge occuring
         for excitee_nodes, excitee_parameters in self.possible_excitees[(i,j)].items():
+            # Get the key parameters for this pair of edges
             weibull_params, lin_val_params = excitee_parameters
             weibull_weight, weibull_alpha, weibull_beta = weibull_params
             lin_val_weight, lin_val_alpha, lin_val_beta = lin_val_params
 
+            # Add a new slot for this pair of edges, if required
             if excitee_nodes not in self.current_excitees:
                 self.current_excitees[excitee_nodes] = []
 
+            # Add the excitement to the list of excitements for
+            # this pair of edges
             self.current_excitees[excitee_nodes].append(
                 Excitement(
                     weibull_weight=weibull_weight,
@@ -187,84 +262,163 @@ class DynamicAccountingGraph():
                     lin_val_weight=lin_val_weight,
                     lin_val_alpha=lin_val_alpha,
                     lin_val_beta=lin_val_beta,
-                    source_nodes=(i,j),
-                    dest_nodes=excitee_nodes,
+                    excitor_nodes=(i,j),
+                    excitee_nodes=excitee_nodes,
                     alive_threshold=self.excitment_threshold
                 )
             )
 
     def edge_baseline(self, i, j):
-        return 0.01
+        """Placeholder for allowing variable baseline intensity
+        between certain nodes (based on the balance of those
+        nodes and their relationship)
+
+        Args:
+            i (int): The index of the source node
+            j (int): The index of the destination node
+
+        Returns:
+            float: The baseline intensity
+        """
+        # Return a constant baseline intensity
+        return 0.0001
 
     def edge_intensity(self, i, j):
+        """Get the total intensity for a particular edge
+
+        Args:
+            i (int): Index of the source node
+            j (int): Index of the destination node
+
+        Returns:
+            float: The total intensity of the edge
+        """
+
+        # Start with the baseline intensity of the edge
         intensity = self.edge_baseline(i, j)
 
+        # For each 'excite' that exists for this edge,
+        # increase the intensity accordingly
         nodes = (i,j)
         if nodes in self.current_excitees:
+            # Increase the intensity by the weighted
+            # probability mass function of the generated,
+            # discrete Weibull distribution
             intensity += sum(
                 excite.probability
-                for excite in self.current_excitees[(i,j)]
+                for excite in self.current_excitees[nodes]
                 )
 
+            # Record all the necessary values for the gradient
+            # ascent algorithm
+
+            # Record the Weibull parameters
             self.gradient_log['alphas'] = \
                 [excite.weibull_alpha
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
             self.gradient_log['betas'] = \
                 [excite.weibull_beta
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
+            # Record the weighting of the Weibull distribution
             self.gradient_log['weights'] = \
                 [excite.weibull_weight
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
+
+            # Record the linear value from the parameter
+            # calculations (before passed through the smooth,
+            # continuous function mapping R->R+)
             self.gradient_log['lin_alphas'] = \
                 [excite.lin_val_alpha
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
             self.gradient_log['lin_betas'] = \
                 [excite.lin_val_beta
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
             self.gradient_log['lin_weights'] = \
                 [excite.lin_val_weight
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
+
+            # Record the original time that the excitor edge
+            # occurred
             self.gradient_log['times'] = \
                 [excite.time
-                 for excite in self.current_excitees[(i,j)]]
-            self.gradient_log['source_nodes'] = \
-                [excite.source_nodes
-                 for excite in self.current_excitees[(i,j)]]
+                 for excite in self.current_excitees[nodes]]
+
+            # Record the nodes in the excitor edge
+            self.gradient_log['excitor_nodes'] = \
+                [excite.excitor_nodes
+                 for excite in self.current_excitees[nodes]]
         else:
+            # Record empty lists if there are no 'excites'
             self.gradient_log['alphas'] = []
             self.gradient_log['betas'] = []
             self.gradient_log['weights'] = []
             self.gradient_log['times'] = []
-            self.gradient_log['source_nodes'] = []
+            self.gradient_log['excitor_nodes'] = []
 
+        # Record the total intensity for the gradient ascent
+        # algorithm
         self.gradient_log['sum_Intensity'] = intensity
 
         return intensity
 
     def edge_probability(self, i, j, count):
+        """The probability that a particular edge occured a
+        given number of times on this day.
+
+        Args:
+            i (int): Index of the source node
+            j (int): Index of the destination node
+            count (int): The number of times that this edge
+                occurred on this day
+
+        Returns:
+            float: A probability
+        """
+
+        # Record the parameters for gradient ascent
         self.gradient_log['k'] = i
         self.gradient_log['l'] = j
         self.gradient_log['count'] = count
 
-
+        # Calculate the probability using a Poisson
+        # distribution with the intensity as the mean
         probability = poisson.pmf(
             k=count,
             mu=self.edge_intensity(i, j)
         )
 
+        # Record the probability for gradient ascent
+        self.gradient_log['P'] = probability
+
+        # Run the gradient ascent algorithm to create
+        # pending parameter updates (to be applied when
+        # the entire period has been added to the graph)
         self.gradient_ascent()
 
         return probability
 
     def day_log_probability(self):
+        """The log probability of all the edges that have
+        occurred on this day
+
+        Returns:
+            float: The log probability
+        """
+
+        # Iterate through all possible edges
         log_probability = 0
         for i in range(self.count_nodes):
             for j in range(self.count_nodes):
+                # Count how many times (if any) that
+                # edge has occurred
                 if (i, j) in self.new_edges:
                     count = self.new_edges[(i, j)]
                 else:
                     count = 0
 
+                # Take the log of the probability of
+                # that edge occurring that number of
+                # times, and add to the running total
                 log_probability += log(
                     self.edge_probability(
                         i, j, count
@@ -274,7 +428,27 @@ class DynamicAccountingGraph():
         return log_probability
 
     def gradient_ascent(self):
-        # Partials
+        """Run the gradient ascent algorithm using
+        cached calculations of the probability of
+        today's edges occuring in the frequency which
+        they did.
+        Gradient ascent will maximise this probability,
+        thereby giving a maximum likelihood estimation
+        for the parameters.
+        The cached calculations will be for the probability
+        of a certain edge occuring a certain number of times.
+        Therefore, the excitee edge is fixed, but there
+        are potentially a number of different excitor edges.
+        Therefore, node embeddings for the nodes in any of
+        these involved edges can be learned. The matrices
+        in the Comparer objects can also be learned.
+        """
+
+        # Calculate the inverse of the probability
+        inverse_probability = 1/self.gradient_log['P']
+
+        # Calculate partial derivatives that are
+        # independent of the excitor edge.
         delP_delIntensity= \
             calc_delP_delIntensity(
                 self.gradient_log['count'],
@@ -306,6 +480,7 @@ class DynamicAccountingGraph():
             for excite_index, time in enumerate(self.gradient_log['times'])
         ]
 
+        # Get the indices of the nodes in the excitee edge
         k = self.gradient_log['k']
         l = self.gradient_log['l']
 
@@ -318,13 +493,15 @@ class DynamicAccountingGraph():
         # Get the edge embedding
         e_kl = self.edge_embedder.embed_edge(x_k, x_l)
 
-        for excite_index, (i, j) in enumerate(self.gradient_log['source_nodes']):
-            # Get linear values
+        for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
+            # Get linear values from the calculations of the
+            # Comparer objects
             lin_val_alpha = self.gradient_log['lin_alphas'][excite_index]
             lin_val_beta = self.gradient_log['lin_betas'][excite_index]
             lin_val_weight = self.gradient_log['lin_weights'][excite_index]
 
-            # Get the node embeddings
+            # Get the node embeddings for the nodes in
+            # the excitor edge
             node_i = self.nodes[i]
             x_i = node_i.embeddings.dest_value
             node_j = self.nodes[j]
@@ -333,6 +510,8 @@ class DynamicAccountingGraph():
             # Get the edge embedding
             e_ij = self.edge_embedder.embed_edge(x_i, x_j)
 
+            # Calculate the partial derivates that depend
+            # on the excitor edge
             delAlpha_delI = \
                 calc_delComparer_delI(
                     linear_value=lin_val_alpha,
@@ -442,9 +621,10 @@ class DynamicAccountingGraph():
                     e_kl=e_kl,
                 )
 
+            # Calculate the gradient updates
             # Node i
             node_i.add_source_gradient_update(
-                delP_delIntensity * (
+                inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delI +
                     delIntensity_delBeta[excite_index] *
@@ -456,7 +636,7 @@ class DynamicAccountingGraph():
 
             # Node j
             node_j.add_source_gradient_update(
-                delP_delIntensity * (
+                inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delJ +
                     delIntensity_delBeta[excite_index] *
@@ -468,7 +648,7 @@ class DynamicAccountingGraph():
 
             # Node k
             node_k.add_dest_gradient_update(
-                delP_delIntensity * (
+                inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delK +
                     delIntensity_delBeta[excite_index] *
@@ -480,7 +660,7 @@ class DynamicAccountingGraph():
 
             # Node l
             node_l.add_dest_gradient_update(
-                delP_delIntensity * (
+                inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delL +
                     delIntensity_delBeta[excite_index] *
@@ -492,46 +672,63 @@ class DynamicAccountingGraph():
 
             # Weight matrix
             self.weibull_weight_generator.add_gradient_update(
-                delP_delIntensity *
+                inverse_probability * delP_delIntensity *
                 delIntensity_delAlpha[excite_index] *
                 delWeightComparerdelMatrix
             )
 
             # Alpha matrix
             self.weibull_alpha_generator.add_gradient_update(
-                delP_delIntensity *
+                inverse_probability * delP_delIntensity *
                 delIntensity_delBeta[excite_index] *
                 delAlphaComparerdelMatrix
             )
 
             # Beta matrix
             self.weibull_beta_generator.add_gradient_update(
-                delP_delIntensity *
+                inverse_probability * delP_delIntensity *
                 delIntensity_delWeight[excite_index] *
                 delBetaComparerdelMatrix
             )
 
+        # Reset the calculations cache
         self.gradient_log = dict()
 
     def apply_gradient_updates(self):
+        """Take the pending gradient updates and
+        update the parameters accordingly
+        """
+
+        # Update node embeddings
         for node in self.nodes:
             node.apply_gradient_updates()
 
+        # Update matrices in the Comparer objects
         self.weibull_alpha_generator.apply_gradient_updates()
         self.weibull_beta_generator.apply_gradient_updates()
         self.weibull_weight_generator.apply_gradient_updates()
 
     def reset(self):
-        self.time = 0
-        self.edge_log = []
+        """Remove edges and excitation to prepare for another
+        epoch of training (embeddings and matrice learnings
+        are retained)
+        """
 
+        # Set the time back to the start of the period
+        self.time = 0
+
+        # Clear any recorded edges
+        self.edge_log = []
         self.new_edges = dict()
 
+        # Clear any excitation
         self.possible_excitees = dict()
         self.current_excitees = dict()
 
         # Apply gradient updates
         self.apply_gradient_updates()
 
-        # Update excitors
+        # Update pairs of edges which could
+        # excite each other under the updated
+        # model parameters
         self.find_excitors()
