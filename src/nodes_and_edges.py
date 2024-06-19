@@ -27,14 +27,113 @@ class Node():
 
         # Store node parameters
         self.name = name
-        self.opening_balance = opening_balance
+        self.balance = opening_balance
+        self.pending_balance_changes = 0
         self.dimension = dimension
         self.meta_data = meta_data
         self.learning_rate = learning_rate
 
         # Create the embeddings of the node (as a source and
         # destination separately)
-        self.embeddings = NodeEmbedding(dimension=dimension)
+        self.spontaneous_embeddings = \
+            NodeEmbedding(dimension=dimension,
+                          learning_rate=self.learning_rate)
+        self.causal_embeddings = \
+            NodeEmbedding(dimension=dimension,
+                          learning_rate=self.learning_rate)
+
+    def increment_time(self):
+        """Advance to the next day
+        """
+        self.balance += self.pending_balance_changes
+        self.pending_balance_changes = 0
+
+    def update_balance(self, change):
+        """Add a pending change to the balance, to be applied
+        at the end of the day
+
+        Args:
+            change (float): The value to change by
+        """
+        self.pending_balance_changes += change
+
+    def add_spontaneous_gradient_update(
+            self, gradient_update, node_type):
+        """Store a gradient update, to be applied to the 
+        spontaneous node embedding at the end of the epoch.
+
+        Args:
+            gradient_update (np.array): The change in the source
+                node embedding, as given by the gradient ascent
+                algorithm for a single excitee
+            node_type (str): Either 'source' or 'dest'
+        """
+
+        # Add the update
+        if node_type == 'source':
+            self.spontaneous_embeddings.add_source_gradient_update(
+                gradient_update
+            )
+        elif node_type == 'dest':
+            self.spontaneous_embeddings.add_dest_gradient_update(
+                gradient_update
+            )
+        else:
+            raise ValueError('Node type must be "source" or "dest"')
+
+    def add_causal_gradient_update(
+            self, gradient_update, node_type):
+        """Store a gradient update, to be applied to the 
+        causal node embedding at the end of the epoch.
+
+        Args:
+            gradient_update (np.array): The change in the source
+                node embedding, as given by the gradient ascent
+                algorithm for a single excitee
+            node_type (str): Either 'source' or 'dest'
+        """
+
+        # Add the update
+        if node_type == 'source':
+            self.causal_embeddings.add_source_gradient_update(
+                gradient_update
+            )
+        elif node_type == 'dest':
+            self.causal_embeddings.add_dest_gradient_update(
+                gradient_update
+            )
+        else:
+            raise ValueError('Node type must be "source" or "dest"')
+
+    def apply_gradient_updates(self):
+        """At the end of an epoch, update the node embeddings
+        based on the cached updates
+        """
+
+        # Update the embeddings
+        self.spontaneous_embeddings.apply_gradient_updates()
+        self.causal_embeddings.apply_gradient_updates()
+
+class NodeEmbedding():
+    """A class to contain the source and destination node
+    embedding for a particular node
+    """
+    def __init__(self, dimension, learning_rate):
+        """Initialise the class
+
+        Args:
+            dimension (int): The dimension of the embeddings.
+            learning_rate (float, optional): The learning rate for the
+                gradient ascent algorithm. Defaults to 0.0001.
+        """
+
+        # Save the dimension and learning rate
+        self.dimension = dimension
+        self.learning_rate = learning_rate
+
+        # Initialise the embeddings randomly
+        self.source_value = np.random.uniform(-1, 1, self.dimension)
+        self.dest_value = np.random.uniform(-1, 1, self.dimension)
 
         # Create attributes to track gradient updates
         self.source_pending_updates = np.zeros(self.dimension)
@@ -69,33 +168,17 @@ class Node():
         self.dest_pending_updates += self.learning_rate*gradient_update
 
     def apply_gradient_updates(self):
-        """At the end of an epoch, update the two node embeddings
+        """At the end of an epoch, update the node embeddings
         based on the cached updates
         """
 
         # Update the embeddings
-        self.embeddings.source_value += self.source_pending_updates
-        self.embeddings.dest_value += self.dest_pending_updates
+        self.source_value += self.source_pending_updates
+        self.dest_value += self.dest_pending_updates
 
         # Reset the cache
         self.source_pending_updates = np.zeros(self.dimension)
         self.dest_pending_updates = np.zeros(self.dimension)
-
-class NodeEmbedding():
-    """A class to contain the source and destination node
-    embedding for a particular node
-    """
-    def __init__(self, dimension):
-        """Initialise the class
-
-        Args:
-            dimension (int): The dimension of the embeddings
-        """
-
-        # Initialise the embeddings randomly
-        self.source_value = np.random.uniform(-1, 1, dimension)
-        self.dest_value = np.random.uniform(-1, 1, dimension)
-
 
 class EdgeEmbedder():
     """A class to combine two node embeddings into an edge embedding
@@ -146,20 +229,23 @@ class EdgeEmbedder():
 
 class EdgeComparer():
     """A class for generating positive, real numbers from two
-    edge embeddings, with gradient-based learning functions
+    embeddings, with gradient-based learning functions
     """
     def __init__(self, dimension, learning_rate=0.0001,
-                 mode='matrix'):
+                 mode='matrix', positive_output=True):
         """Initialise the class
 
         Args:
-            dimension (int): The dimension of the edge embeddings
+            dimension (int): The dimension of the embeddings
             learning_rate (float, optional): The learning rate to use
                 for the gradient-ascent algorithm. Defaults to 0.0001.
             mode (str, optional): The method to use for generating a
                 real-valued output. The 'vector' option (dot-product)
                 is removed, and therefore only 'matrix' is implemented.
                 Defaults to 'matrix'.
+            positive_output (bool, optional): Whether a function should
+                be applied to the output to ensure it is positive.
+                Defaults to True.
 
         Raises:
             ValueError: A valid mode must be provided
@@ -168,6 +254,9 @@ class EdgeComparer():
         # Record the dimension
         self.dimension = dimension
 
+        # Record if the positive function should be applied
+        self.positive_output = positive_output
+
         if mode == 'matrix':
             # Initialise a random matrix
             self.matrix = \
@@ -175,10 +264,10 @@ class EdgeComparer():
                     -1, 1, (self.dimension, self.dimension)
                 )
 
-            # Overwrite the compare_edges method (to save
+            # Overwrite the compare_embeddings method (to save
             # checking the mode attribute every time it is
             # called)
-            self.compare_edges = self.matrix_form
+            self.compare_embeddings = self.matrix_form
         else:
             raise ValueError(
                 f'Edge comparer mode {mode} is not recognised'
@@ -203,14 +292,13 @@ class EdgeComparer():
     def matrix_form(self, e_i, e_j):
         """The function used by the 'matrix' mode. A
         matrix is included inside a dot-product of the two
-        edge embeddings, to allow interactions between
-        source and destination node embeddings and to
-        allow features to be amplified, reversed  or
+        embeddings, to allow interactions between embeddings
+        and to allow features to be amplified, reversed or
         turned off (depending on the matrix coefficients)
 
         Args:
-            e_i (np.array): Excitor node embedding
-            e_j (np.array): Excitee node embedding
+            e_i (np.array): First embedding
+            e_j (np.array): Second embedding
 
         Returns:
             float: A positive real number
@@ -219,18 +307,21 @@ class EdgeComparer():
         # Calculate the linear part of the function
         linear_value = e_i.T @ self.matrix @ e_j
 
-        # Cache this value for the gradient-ascent algorithm
-        self.last_linear_value = linear_value
+        if self.positive_output:
+            # Cache this value for the gradient-ascent algorithm
+            self.last_linear_value = linear_value
 
-        # Apply the piecewise function to make the output
-        # certainly positive
-        if linear_value < 0:
-            # The smooth, continuous function is exponential
-            # for negative inputs...
-            return np.exp(linear_value)
+            # Apply the piecewise function to make the output
+            # certainly positive
+            if linear_value < 0:
+                # The smooth, continuous function is exponential
+                # for negative inputs...
+                return np.exp(linear_value)
+            else:
+                # ... and logarithmic for positive inputs.
+                return np.log(linear_value + 1) + 1
         else:
-            # ... and logarithmic for positive inputs.
-            return np.log(linear_value + 1) + 1
+            return linear_value
 
     def add_gradient_update(self, gradient_update):
         """Store a gradient update, to be applied to the

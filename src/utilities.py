@@ -264,6 +264,93 @@ def calc_delComparer_delMatrix(linear_value, e_ij, e_kl):
         (e_ij * e_kl.reshape((e_kl.size, 1)))
 
 
+def calc_delBaselineIntensity_delZero(linear_value):
+    """A partial derivative of the baseline intensity by
+    the first linear parameter
+
+    Args:
+        linear_value (float): The linear part of the function
+
+    Returns:
+        float: The partial derivative
+    """
+    return log_exp_multiplier(linear_value)
+
+
+def calc_delBaselineIntensity_delOne(linear_value, source_balance):
+    """A partial derivative of the baseline intensity by
+    the second linear parameter
+
+    Args:
+        linear_value (float): The linear part of the function
+        source_balance (float): The balance on the source node
+
+    Returns:
+        float: The partial derivative
+    """
+    return log_exp_multiplier(linear_value) * source_balance
+
+
+def calc_delBaselineIntensity_delTwo(linear_value, dest_balance):
+    """A partial derivative of the baseline intensity by
+    the third linear parameter
+
+    Args:
+        linear_value (float): The linear part of the function
+        dest_balance (float): The balance on the source node
+
+    Returns:
+        float: The partial derivative
+    """
+    return log_exp_multiplier(linear_value) * dest_balance
+
+
+def calc_delBaselineComparer_delK(matrix, y_l):
+    """A partial derivative of the baseline linear coefficients
+    by the source node embedding
+
+    Args:
+        matrix (np.array): The matrix from the linear function
+        y_l (np.array): The node embedding of the destination node
+
+    Returns:
+        float: The partial derivative
+    """
+
+    return matrix @ y_l
+
+
+def calc_delBaselineComparer_delL(matrix, y_k):
+    """A partial derivative of the baseline linear coefficients
+    by the destination node embedding
+
+    Args:
+        matrix (np.array): The matrix from the linear function
+        y_k (np.array): The node embedding of the source node
+
+    Returns:
+        float: The partial derivative
+    """
+
+    return y_k @ matrix
+
+
+def calc_delBaselineComparer_delMatrix(y_k, y_l):
+    """A partial derivative of the baseline linear coefficients
+    by the matrix components
+
+    Args:
+        y_k (np.array): The node embedding of the source node
+        y_l (np.array): The node embedding of the destination node
+
+    Returns:
+        float: The partial derivative
+    """
+
+    return \
+        y_k * y_l.reshape((y_l.size, 1))
+
+
 def log_exp_multiplier(linear_value):
     """A helper function which gives the partial derivative
     from the smooth, continuous function that ensures the
