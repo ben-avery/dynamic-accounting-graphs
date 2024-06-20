@@ -66,9 +66,12 @@ def calc_delP_delIntensity(count, sum_Intensity):
     Returns:
         float: The partial derivative
     """
-    return (1/math.factorial(count)) * (
-        count*(sum_Intensity**(count-1)) - sum_Intensity**count
-    )*np.exp(-sum_Intensity)
+    if count == 0:
+        return -np.exp(-sum_Intensity)
+    else:
+        return (1/math.factorial(count)) * (
+            count*(sum_Intensity**(count-1)) - sum_Intensity**count
+        )*np.exp(-sum_Intensity)
 
 
 def calc_delIntensity_delAlpha(time, alpha, beta, weight):
