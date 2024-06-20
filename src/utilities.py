@@ -94,7 +94,7 @@ def calc_delIntensity_delAlpha(time, alpha, beta, weight):
     return weight * (
         beta *
         ((time**beta)/(alpha**(beta + 1))) *
-        part_weibull(time, alpha, beta) - 
+        part_weibull(time, alpha, beta) -
         beta *
         (((time + 1)**beta)/(alpha**(beta + 1))) *
         part_weibull(time + 1, alpha, beta)
@@ -126,7 +126,7 @@ def calc_delIntensity_delBeta(time, alpha, beta, weight):
         return weight * (
             np.log((time+1)/alpha) *
             (((time+1)/alpha)**beta) *
-            part_weibull(time+1, alpha, beta) 
+            part_weibull(time+1, alpha, beta)
         )
     else:
         return weight * (
@@ -135,7 +135,7 @@ def calc_delIntensity_delBeta(time, alpha, beta, weight):
             part_weibull(time, alpha, beta) +
             np.log((time+1)/alpha) *
             (((time+1)/alpha)**beta) *
-            part_weibull(time+1, alpha, beta) 
+            part_weibull(time+1, alpha, beta)
         )
 
 
