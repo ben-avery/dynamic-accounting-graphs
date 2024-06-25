@@ -50,7 +50,15 @@ def part_weibull(x, alpha, beta):
             distribution (or its derivative, when used
             in gradient-based algorithms)
     """
-    return np.exp(-(x/alpha)**beta)
+
+    exponent = -(x/alpha)**beta
+
+    # Handle underflows
+    if -(x/alpha)**beta < -20:
+        return 0
+
+    # Return the part-Weibull evaluation
+    return np.exp(exponent)
 
 
 def calc_delP_delIntensity(count, sum_Intensity):
@@ -177,7 +185,7 @@ def calc_delComparer_delI(linear_value, matrix, e_kl, node_dimension):
     """
 
     return \
-        log_exp_multiplier(linear_value) * \
+        log_exp_deriv_multiplier(linear_value) * \
         (matrix[:node_dimension,:] @ e_kl)
 
 
@@ -199,7 +207,7 @@ def calc_delComparer_delJ(linear_value, matrix, e_kl, node_dimension):
     """
 
     return \
-        log_exp_multiplier(linear_value) * \
+        log_exp_deriv_multiplier(linear_value) * \
         (matrix[node_dimension:node_dimension*2,:] @ e_kl)
 
 
@@ -221,7 +229,7 @@ def calc_delComparer_delK(linear_value, matrix, e_ij, node_dimension):
     """
 
     return \
-        log_exp_multiplier(linear_value) * \
+        log_exp_deriv_multiplier(linear_value) * \
         (e_ij @ matrix[:,:node_dimension])
 
 
@@ -243,7 +251,7 @@ def calc_delComparer_delL(linear_value, matrix, e_ij, node_dimension):
     """
 
     return \
-        log_exp_multiplier(linear_value) * \
+        log_exp_deriv_multiplier(linear_value) * \
         (e_ij @ matrix[:,node_dimension:node_dimension*2])
 
 
@@ -263,7 +271,7 @@ def calc_delComparer_delMatrix(linear_value, e_ij, e_kl):
     """
 
     return \
-        log_exp_multiplier(linear_value) * \
+        log_exp_deriv_multiplier(linear_value) * \
         (e_ij * e_kl.reshape((e_kl.size, 1)))
 
 
@@ -277,7 +285,7 @@ def calc_delBaselineIntensity_delZero(linear_value):
     Returns:
         float: The partial derivative
     """
-    return log_exp_multiplier(linear_value)
+    return log_exp_deriv_multiplier(linear_value)
 
 
 def calc_delBaselineIntensity_delOne(linear_value, source_balance):
@@ -291,7 +299,7 @@ def calc_delBaselineIntensity_delOne(linear_value, source_balance):
     Returns:
         float: The partial derivative
     """
-    return log_exp_multiplier(linear_value) * source_balance
+    return log_exp_deriv_multiplier(linear_value) * source_balance
 
 
 def calc_delBaselineIntensity_delTwo(linear_value, dest_balance):
@@ -305,7 +313,7 @@ def calc_delBaselineIntensity_delTwo(linear_value, dest_balance):
     Returns:
         float: The partial derivative
     """
-    return log_exp_multiplier(linear_value) * dest_balance
+    return log_exp_deriv_multiplier(linear_value) * dest_balance
 
 
 def calc_delBaselineComparer_delK(matrix, y_l):
@@ -354,7 +362,33 @@ def calc_delBaselineComparer_delMatrix(y_k, y_l):
         y_k * y_l.reshape((y_l.size, 1))
 
 
-def log_exp_multiplier(linear_value):
+def log_exp_function(linear_value):
+    """A helper function which gives the smooth, continuous
+    function that ensures parameters are positive.
+
+    Args:
+        linear_value (float): The value of the parameter before
+            being passed through the smooth, continuous function
+            to ensure it is positive
+
+    Returns:
+        float: The partial derivative of the smooth, continuous
+            function with respect to the linear function
+    """
+
+    # The smooth function is defined piecewise
+    if linear_value < -30:
+        # Lower limit for exponential function to prevent underflow
+        return 0
+    elif linear_value < 0:
+        # Exponential portion
+        return np.exp(linear_value)
+    else:
+        # Logarithmic portion
+        return np.log(linear_value + 1) + 1
+
+
+def log_exp_deriv_multiplier(linear_value):
     """A helper function which gives the partial derivative
     from the smooth, continuous function that ensures the
     Weibull parameters and weight are positive.
@@ -372,7 +406,10 @@ def log_exp_multiplier(linear_value):
     # The smooth function is defined piecewise, and therefore
     # its gradient has a different expression for positive and
     # negative values
-    if linear_value < 0:
+    if linear_value < -30:
+        # Lower limit for exponential function to prevent underflow
+        return 0
+    elif linear_value < 0:
         # Exponential portion
         return np.exp(linear_value)
     else:

@@ -16,7 +16,8 @@ from utilities import (
     calc_delBaselineIntensity_delTwo,
     calc_delBaselineComparer_delK,
     calc_delBaselineComparer_delL,
-    calc_delBaselineComparer_delMatrix
+    calc_delBaselineComparer_delMatrix,
+    log_exp_function
 )
 
 
@@ -101,7 +102,8 @@ class DynamicAccountingGraph():
         self.weibull_beta_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
             learning_rate=self.learning_rate,
-            mode=weibull_beta_generator_mode
+            mode=weibull_beta_generator_mode,
+            min_at=1
         )
 
         # Create generators for linear parameters of
@@ -348,15 +350,7 @@ class DynamicAccountingGraph():
             full_linear_output
 
         # Make it positive
-        if full_linear_output < 0:
-            # The smooth, continuous function is exponential
-            # for negative inputs...
-            output = exp(full_linear_output)
-        else:
-            # ... and logarithmic for positive inputs.
-            output = log(full_linear_output + 1) + 1
-
-        return output
+        return log_exp_function(full_linear_output)
 
     def edge_intensity(self, i, j):
         """Get the total intensity for a particular edge
@@ -655,26 +649,56 @@ class DynamicAccountingGraph():
             node_type='dest'
         )
 
-        self.base_param_0.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delZero *
-                delBaselineComparer_delMatrix
+        try:
+            self.base_param_0.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delZero *
+                    delBaselineComparer_delMatrix
+                )
             )
-        )
+        except FloatingPointError as e:
+            print(
+                'Base Param 0, Floating point error',
+                inverse_probability,
+                delP_delIntensity,
+                delBaselineIntensity_delZero,
+                delBaselineComparer_delMatrix
+                )
+            raise e
 
-        self.base_param_1.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delOne *
-                delBaselineComparer_delMatrix
+        try:
+            self.base_param_1.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delOne *
+                    delBaselineComparer_delMatrix
+                )
             )
-        )
+        except FloatingPointError as e:
+            print(
+                'Base Param 1, Floating point error',
+                inverse_probability,
+                delP_delIntensity,
+                delBaselineIntensity_delZero,
+                delBaselineComparer_delMatrix
+                )
+            raise e
 
-        self.base_param_2.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delTwo *
-                delBaselineComparer_delMatrix
+        try:
+            self.base_param_2.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delTwo *
+                    delBaselineComparer_delMatrix
+                )
             )
-        )
+        except FloatingPointError as e:
+            print(
+                'Base Param 2, Floating point error',
+                inverse_probability,
+                delP_delIntensity,
+                delBaselineIntensity_delTwo,
+                delBaselineComparer_delMatrix
+                )
+            raise e
 
         for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
             # Get linear values from the calculations of the

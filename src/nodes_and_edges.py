@@ -2,6 +2,8 @@
 """
 import numpy as np
 
+from utilities import log_exp_function
+
 
 class Node():
     """A class for a node, containing embeddings and gradient-based
@@ -232,7 +234,8 @@ class EdgeComparer():
     embeddings, with gradient-based learning functions
     """
     def __init__(self, dimension, learning_rate=0.0001,
-                 mode='matrix', positive_output=True):
+                 mode='matrix', positive_output=True,
+                 min_at=0):
         """Initialise the class
 
         Args:
@@ -246,6 +249,8 @@ class EdgeComparer():
             positive_output (bool, optional): Whether a function should
                 be applied to the output to ensure it is positive.
                 Defaults to True.
+            min_at (float, optional): The minimum value for the function.
+                Defaults to 0.0.
 
         Raises:
             ValueError: A valid mode must be provided
@@ -256,6 +261,7 @@ class EdgeComparer():
 
         # Record if the positive function should be applied
         self.positive_output = positive_output
+        self.min_at = min_at
 
         if mode == 'matrix':
             # Initialise a random matrix
@@ -313,13 +319,7 @@ class EdgeComparer():
 
             # Apply the piecewise function to make the output
             # certainly positive
-            if linear_value < 0:
-                # The smooth, continuous function is exponential
-                # for negative inputs...
-                return np.exp(linear_value)
-            else:
-                # ... and logarithmic for positive inputs.
-                return np.log(linear_value + 1) + 1
+            return log_exp_function(linear_value) + self.min_at
         else:
             return linear_value
 
