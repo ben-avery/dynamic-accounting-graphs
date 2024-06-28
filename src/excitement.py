@@ -19,7 +19,7 @@ class Excitement():
     def __init__(self, weibull_weight, weibull_alpha, weibull_beta,
                  lin_val_weight, lin_val_alpha, lin_val_beta,
                  excitor_nodes, excitee_nodes,
-                 alive_threshold=0.01):
+                 alive_threshold=0.0001):
         """Initialise the class
 
         Args:
