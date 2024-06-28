@@ -94,7 +94,7 @@ class Excitement():
             self.weibull_weight - self.probability
 
     def prob_part(self, time):
-        """Return exp(-(x/alpha)**beta), which can
+        """Return weighted exp(-(x/alpha)**beta), which can
         be used in the discrete Weibull PMF
 
         Args:
@@ -109,7 +109,7 @@ class Excitement():
         if not self.alive:
             raise ValueError('Excitement is not alive')
 
-        return part_weibull(time, self.weibull_alpha, self.weibull_beta)
+        return self.weibull_weight * part_weibull(time, self.weibull_alpha, self.weibull_beta)
 
     def increment_probability(self):
         """Use the form of the Weibull PMF to borrow half
