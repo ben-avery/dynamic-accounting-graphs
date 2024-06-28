@@ -10,7 +10,8 @@ class Node():
     learning functions
     """
     def __init__(self, name, opening_balance, dimension,
-                 learning_rate=0.0001, meta_data=None):
+                 learning_rate=0.001, regularisation_rate=0.01,
+                 meta_data=None):
         """Initialise the class
 
         Args:
@@ -19,7 +20,9 @@ class Node():
                 associated account at the start of the period
             dimension (int): The dimension of the node embeddings
             learning_rate (float, optional): The learning rate for the
-                gradient ascent algorithm. Defaults to 0.0001.
+                gradient ascent algorithm. Defaults to 0.001.
+            regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty. Defaults to 0.01.
             meta_data (dict, optional): A dictionary of other information
                 about a node which is irrelevant to the training. For example,
                 it may be useful for downstream applications to know the
@@ -34,15 +37,18 @@ class Node():
         self.dimension = dimension
         self.meta_data = meta_data
         self.learning_rate = learning_rate
+        self.regularisation_rate = regularisation_rate
 
         # Create the embeddings of the node (as a source and
         # destination separately)
         self.spontaneous_embeddings = \
             NodeEmbedding(dimension=dimension,
-                          learning_rate=self.learning_rate)
+                          learning_rate=self.learning_rate,
+                          regularisation_rate=self.regularisation_rate)
         self.causal_embeddings = \
             NodeEmbedding(dimension=dimension,
-                          learning_rate=self.learning_rate)
+                          learning_rate=self.learning_rate,
+                          regularisation_rate=self.regularisation_rate)
 
     def increment_time(self):
         """Advance to the next day
@@ -120,18 +126,22 @@ class NodeEmbedding():
     """A class to contain the source and destination node
     embedding for a particular node
     """
-    def __init__(self, dimension, learning_rate):
+    def __init__(self, dimension,
+                 learning_rate=0.001, regularisation_rate=0.01):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings.
             learning_rate (float, optional): The learning rate for the
-                gradient ascent algorithm. Defaults to 0.0001.
+                gradient ascent algorithm. Defaults to 0.001.
+            regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty. Defaults to 0.01.
         """
 
-        # Save the dimension and learning rate
+        # Save the dimension and learning rates
         self.dimension = dimension
         self.learning_rate = learning_rate
+        self.regularisation_rate = regularisation_rate
 
         # Initialise the embeddings randomly
         self.source_value = np.random.uniform(-1, 1, self.dimension)
@@ -175,6 +185,10 @@ class NodeEmbedding():
         """
 
         # Update the embeddings
+        # Regularisation penalty
+        self.source_value -= 2*self.regularisation_rate*self.source_value
+        self.dest_value -= 2*self.regularisation_rate*self.dest_value
+        # Gradient ascent
         self.source_value += self.source_pending_updates
         self.dest_value += self.dest_pending_updates
 
@@ -233,7 +247,8 @@ class EdgeComparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
-    def __init__(self, dimension, learning_rate=0.0001,
+    def __init__(self, dimension,
+                 learning_rate=0.001, regularisation_rate=0.01,
                  mode='matrix', positive_output=True,
                  min_at=0):
         """Initialise the class
@@ -241,7 +256,9 @@ class EdgeComparer():
         Args:
             dimension (int): The dimension of the embeddings
             learning_rate (float, optional): The learning rate to use
-                for the gradient-ascent algorithm. Defaults to 0.0001.
+                for the gradient-ascent algorithm. Defaults to 0.001.
+            regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty. Defaults to 0.01.
             mode (str, optional): The method to use for generating a
                 real-valued output. The 'vector' option (dot-product)
                 is removed, and therefore only 'matrix' is implemented.
@@ -286,8 +303,9 @@ class EdgeComparer():
         # linear function is required.
         self.last_linear_value = None
 
-        # Save the learning rate
+        # Save the learning rates
         self.learning_rate = learning_rate
+        self.regularisation_rate = regularisation_rate
 
         # Set up a variable to store pending gradient updates
         # (to be applied at the end of each epoch)
@@ -343,6 +361,9 @@ class EdgeComparer():
         """
 
         # Update the matrix
+        # Regularisation penalty
+        self.matrix -= 2*self.regularisation_rate*self.matrix
+        # Gradient ascent
         self.matrix += self.pending_updates
 
         # Reset the cache

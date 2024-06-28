@@ -29,7 +29,7 @@ class DynamicAccountingGraph():
                  weibull_weight_generator_mode='matrix',
                  weibull_alpha_generator_mode='matrix',
                  weibull_beta_generator_mode='matrix',
-                 learning_rate=0.0001):
+                 learning_rate=0.001, regularisation_rate=0.01):
         """Initialise the class
 
         Args:
@@ -55,11 +55,14 @@ class DynamicAccountingGraph():
                 between two edges exciting each other). Defaults
                 to 'matrix'.
             learning_rate (float, optional): The learning rate for the
-                gradient ascent algorithm. Defaults to 0.0001.
+                gradient ascent algorithm. Defaults to 0.001.
+            regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty. Defaults to 0.01.
         """
         self.time = 0
 
         self.learning_rate = learning_rate
+        self.regularisation_rate = regularisation_rate
 
         # Create the nodes with random embeddings
         self.nodes = []
@@ -70,6 +73,7 @@ class DynamicAccountingGraph():
                 opening_balance=account.balance,
                 dimension=node_dimension,
                 learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
                 meta_data={
                     'account_number': account.number,
                     'mapping': account.mapping
@@ -92,16 +96,20 @@ class DynamicAccountingGraph():
         self.weibull_weight_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
             learning_rate=self.learning_rate,
+            regularisation_rate=self.regularisation_rate,
             mode=weibull_weight_generator_mode
         )
         self.weibull_alpha_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
             learning_rate=self.learning_rate,
-            mode=weibull_alpha_generator_mode
+            regularisation_rate=self.regularisation_rate,
+            mode=weibull_alpha_generator_mode,
+            min_at=0.1
         )
         self.weibull_beta_generator = EdgeComparer(
             dimension=self.edge_embedder.output_dimension,
             learning_rate=self.learning_rate,
+            regularisation_rate=self.regularisation_rate,
             mode=weibull_beta_generator_mode,
             min_at=1
         )
@@ -111,16 +119,19 @@ class DynamicAccountingGraph():
         self.base_param_0 = EdgeComparer(
             dimension=self.node_dimension,
             learning_rate=self.learning_rate,
+            regularisation_rate=self.regularisation_rate,
             mode='matrix', positive_output=False
         )
         self.base_param_1 = EdgeComparer(
             dimension=self.node_dimension,
             learning_rate=self.learning_rate,
+            regularisation_rate=self.regularisation_rate,
             mode='matrix', positive_output=False
         )
         self.base_param_2 = EdgeComparer(
             dimension=self.node_dimension,
             learning_rate=self.learning_rate,
+            regularisation_rate=self.regularisation_rate,
             mode='matrix', positive_output=False
         )
 
@@ -133,7 +144,7 @@ class DynamicAccountingGraph():
         # other based on the weight of the corresponding
         # Weibull distribution
         self.possible_excitees = dict()
-        self.excitment_threshold = 0.01
+        self.excitment_threshold = 0.00001
         self.find_excitors()
 
         # Create an attribute to store any edges that are
@@ -489,10 +500,13 @@ class DynamicAccountingGraph():
                 # that edge occurring that number of
                 # times, and add to the running total
                 log_probability += log(
-                    self.edge_probability(
-                        i, j, count
+                    max(
+                        0.00001,
+                        self.edge_probability(
+                            i, j, count
+                        )
                     )
-                    )
+                )
 
         return log_probability
 
@@ -514,7 +528,7 @@ class DynamicAccountingGraph():
         """
 
         # Calculate the inverse of the probability
-        inverse_probability = 1/self.gradient_log['P']
+        inverse_probability = 1 / max(0.00001, self.gradient_log['P'])
 
         # Calculate partial derivatives that are
         # independent of the excitor edge.

@@ -54,7 +54,7 @@ def part_weibull(x, alpha, beta):
     exponent = -(x/alpha)**beta
 
     # Handle underflows
-    if -(x/alpha)**beta < -20:
+    if exponent < -20:
         return 0
 
     # Return the part-Weibull evaluation
