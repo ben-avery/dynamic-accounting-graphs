@@ -51,14 +51,23 @@ def part_weibull(x, alpha, beta):
             in gradient-based algorithms)
     """
 
-    pre_exponent = beta * np.log(x/alpha)
-
-    if pre_exponent > 20:
-        return 0
-    elif pre_exponent < -20:
-        exponent = 0
+    if x == 0:
+        # Shortcut if x == 0
+        return 1
     else:
-        exponent = -np.exp(pre_exponent)
+        # Evaluate log of exponent to check for
+        # underflows or overflows
+        pre_exponent = beta * np.log(x/alpha)
+
+        if pre_exponent > 20:
+            # Handle underflows
+            return 0
+        elif pre_exponent < -20:
+            # Handle overflows
+            return 1
+        else:
+            # Calculate exponent
+            exponent = -np.exp(pre_exponent)
 
     # Handle underflows
     if exponent < -20:
