@@ -38,13 +38,54 @@ class TestIncrementTime(unittest.TestCase):
 
             self.excitement.increment_time()
 
-    def test_probability_matches(self):
+    def test_sum_probability_matches(self):
         for time in range(25):
             self.assertEqual(
                 sum(self.excitement.prob_parts),
+                self.excitement.probability
+            )
+
+            self.excitement.increment_time()
+
+    def test_probability_matches(self):
+        for time in range(25):
+            self.assertEqual(
+                self.excitement.probability,
                 self.weibull_weight*utilities.discrete_weibull_pmf(
                     time, self.weibull_alpha, self.weibull_beta
                 )
             )
 
             self.excitement.increment_time()
+
+    def test_probability_sums_to_weight(self):
+        running_total = 0
+
+        for time in range(25):
+            running_total += self.excitement.probability
+
+            self.excitement.increment_time()
+
+        self.assertAlmostEqual(
+            self.weibull_weight,
+            running_total
+        )
+
+    def test_excitement_dies(self):
+        self.excitement.alive_threshold = 0.5
+
+        time = 0
+        running_total = self.excitement.probability
+        while time < 100 and self.excitement.alive:
+            self.assertGreater(
+                self.weibull_weight - running_total,
+                0.5
+            )
+
+            self.excitement.increment_time()
+            running_total += self.excitement.probability
+
+        self.assertLess(
+            self.weibull_weight - running_total,
+            0.5
+        )

@@ -122,6 +122,9 @@ class Excitement():
         if not self.alive:
             raise ValueError('Excitement is not alive')
 
+        # Increment time
+        self.time += 1
+
         # Re-use the second probability part, and calculate
         # the new part
         self.prob_parts = (
@@ -135,7 +138,7 @@ class Excitement():
         # Update the probability of the edge occuring
         # at some future point
         self.remaining_weight = \
-            self.weibull_weight - self.probability
+            self.remaining_weight - self.probability
 
     def increment_time(self):
         """Increment time to the next day, updating
@@ -147,14 +150,10 @@ class Excitement():
         if not self.alive:
             raise ValueError('Excitement is not alive')
 
+        self.increment_probability()
+
         if self.remaining_weight < self.alive_threshold:
             # If the probability of the edge occuring on the
             # next day or later is below the alive threshold,
             # then the excite has died
             self.alive = False
-            self.probability = None
-        else:
-            # If the excite is still alive, increment the time
-            # and update the current probability
-            self.time += 1
-            self.increment_probability()
