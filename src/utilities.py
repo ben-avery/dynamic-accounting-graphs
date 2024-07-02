@@ -288,7 +288,7 @@ def calc_delComparer_delMatrix(linear_value, e_ij, e_kl):
 
     return \
         log_exp_deriv_multiplier(linear_value) * \
-        (e_ij * e_kl.reshape((e_kl.size, 1)))
+        (e_ij.reshape((e_ij.size, 1)) * e_kl)
 
 
 def calc_delBaselineIntensity_delZero(linear_value):
@@ -430,4 +430,4 @@ def log_exp_deriv_multiplier(linear_value):
         return np.exp(linear_value)
     else:
         # Logarithmic portion
-        return 1/(linear_value+1)
+        return 1 / (linear_value + 1)

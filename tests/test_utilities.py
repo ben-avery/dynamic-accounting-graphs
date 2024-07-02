@@ -3,6 +3,7 @@ import numpy as np
 from scipy.stats import poisson
 
 import utilities
+from nodes_and_edges import EdgeComparer
 
 
 class TestWeibullPdf(unittest.TestCase):
@@ -428,4 +429,227 @@ class Test_delIntensity_delParams(unittest.TestCase):
         # Test
         self.derivative_helper(
             time, alpha, beta, weight
+        )
+
+
+class Test_delComparer_delParams(unittest.TestCase):
+    """Test the derivative of the Comparer function
+    relative to its parameters
+    """
+    def derivative_helper(self, matrix, e_ij, e_kl, node_dimension,
+                          epsilon=10**(-8), min_at=None):
+        # Set up the comparer
+        if min_at is None:
+            comparer = EdgeComparer(node_dimension*2)
+        else:
+            comparer = EdgeComparer(node_dimension*2, min_at=min_at)
+        comparer.matrix = matrix
+
+        # Calculate the function value
+        base_value = \
+            comparer.compare_embeddings(
+                e_ij, e_kl
+            )
+        linear_value = comparer.last_linear_value
+
+        # Calculate the actual derivative for I
+        calc_deriv_I = \
+            utilities.calc_delComparer_delI(
+                linear_value, matrix, e_kl, node_dimension)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node I embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension*2, a)[0]*epsilon
+            next_value = \
+                comparer.compare_embeddings(
+                    e_ij+increment, e_kl
+                )
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            self.assertAlmostEqual(
+                calc_deriv_I[a],
+                estimated_deriv,
+                msg=f'Node I, dimension {a}'
+            )
+
+        # Calculate the actual derivative for J
+        calc_deriv_J = \
+            utilities.calc_delComparer_delJ(
+                linear_value, matrix, e_kl, node_dimension)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node J embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension*2, a+node_dimension)[0]*epsilon
+            next_value = \
+                comparer.compare_embeddings(
+                    e_ij+increment, e_kl
+                )
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            self.assertAlmostEqual(
+                calc_deriv_J[a],
+                estimated_deriv,
+                msg=f'Node J, dimension {a}'
+            )
+
+        # Calculate the actual derivative for K
+        calc_deriv_K = \
+            utilities.calc_delComparer_delK(
+                linear_value, matrix, e_ij, node_dimension)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node K embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension*2, a)[0]*epsilon
+            next_value = \
+                comparer.compare_embeddings(
+                    e_ij, e_kl+increment
+                )
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            self.assertAlmostEqual(
+                calc_deriv_K[a],
+                estimated_deriv,
+                msg=f'Node K, dimension {a}'
+            )
+
+        # Calculate the actual derivative for L
+        calc_deriv_L = \
+            utilities.calc_delComparer_delL(
+                linear_value, matrix, e_ij, node_dimension)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node L embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension*2, a+node_dimension)[0]*epsilon
+            next_value = \
+                comparer.compare_embeddings(
+                    e_ij, e_kl+increment
+                )
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            self.assertAlmostEqual(
+                calc_deriv_L[a],
+                estimated_deriv,
+                msg=f'Node L, dimension {a}'
+            )
+
+        # Calculate the actual derivative for the matrix
+        calc_deriv_A = \
+            utilities.calc_delComparer_delMatrix(
+                linear_value, e_ij, e_kl)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for matrix components
+        for a in range(node_dimension*2):
+            for b in range(node_dimension*2):
+                increment = np.zeros(
+                    (node_dimension*2, node_dimension*2))
+                increment[a][b] = epsilon
+
+                comparer.matrix = matrix + increment
+
+                next_value = \
+                    comparer.compare_embeddings(
+                        e_ij, e_kl
+                    )
+
+                estimated_deriv = (next_value-base_value)/epsilon
+
+                self.assertAlmostEqual(
+                    calc_deriv_A[a][b],
+                    estimated_deriv,
+                    msg=f'Matrix component {a}, {b}'
+                )
+
+    def test_deriv(self):
+        # Choose the derivate
+        matrix = np.array([
+            [1, 2, 3, 4],
+            [4, 3, 2, 1],
+            [-0.5, 0.5, -0.5, 0.5],
+            [1, 1, 1, 1]
+        ])
+        e_ij = np.array(
+            [1, 3, 0, -7]
+        )
+        e_kl = np.array(
+            [-1, 0.5, 0.3, 1.0]
+        )
+        node_dimension = 2
+
+        # Test
+        self.derivative_helper(
+            matrix, e_ij, e_kl, node_dimension
+        )
+
+    def test_deriv_negative(self):
+        # Choose the derivate
+        matrix = np.array([
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+        ])
+        e_ij = np.array(
+            [1, 1, 1, 1]
+        )
+        e_kl = np.array(
+            [-1, -1, -1, -1]
+        )
+        node_dimension = 2
+
+        # Test
+        self.derivative_helper(
+            matrix, e_ij, e_kl, node_dimension
+        )
+
+    def test_deriv_positive(self):
+        # Choose the derivate
+        matrix = np.array([
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+        ])
+        e_ij = np.array(
+            [1, 1, 1, 1]
+        )
+        e_kl = np.array(
+            [1, 1, 1, 1]
+        )
+        node_dimension = 2
+
+        # Test
+        self.derivative_helper(
+            matrix, e_ij, e_kl, node_dimension
+        )
+
+    def test_deriv_min_at(self):
+        # Choose the derivate
+        matrix = np.array([
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+        ])
+        e_ij = np.array(
+            [1, 1, 1, 1]
+        )
+        e_kl = np.array(
+            [1, 1, 1, 1]
+        )
+        node_dimension = 2
+
+        # Test
+        self.derivative_helper(
+            matrix, e_ij, e_kl, node_dimension,
+            min_at=10,
+            epsilon=10**(-6)
         )
