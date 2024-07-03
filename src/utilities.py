@@ -424,7 +424,9 @@ def log_exp_deriv_multiplier(linear_value):
     # negative values
     if linear_value < -30:
         # Lower limit for exponential function to prevent underflow
-        return 0
+        # (but don't set to zero, otherwise gradient-based optimisers
+        # will get stuck)
+        return log_exp_deriv_multiplier(-30)
     elif linear_value < 0:
         # Exponential portion
         return np.exp(linear_value)
