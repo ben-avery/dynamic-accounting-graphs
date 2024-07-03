@@ -375,7 +375,7 @@ def calc_delBaselineComparer_delMatrix(y_k, y_l):
     """
 
     return \
-        y_k * y_l.reshape((y_l.size, 1))
+        y_k.reshape((y_k.size, 1)) * y_l
 
 
 def log_exp_function(linear_value):
