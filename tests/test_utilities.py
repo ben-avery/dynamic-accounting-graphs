@@ -934,3 +934,79 @@ class Test_delBaselineComparer_delParams(unittest.TestCase):
         self.derivative_helper(
             matrix, y_k, y_l, node_dimension
         )
+
+
+class Test_delF(unittest.TestCase):
+    """Test the derivative of the smooth, continuous
+    function designed to make values positive
+    """
+    def derivative_helper(self, input_value, epsilon=10**(-8)):
+        # Calculate the function value
+        base_value = \
+            utilities.log_exp_function(input_value)
+
+        # Estimate the derivative
+        next_value = \
+            utilities.log_exp_function(input_value+epsilon)
+
+        estimated_deriv = (next_value-base_value)/epsilon
+
+        # Calculate the derivative
+        calc_deriv = \
+            utilities.log_exp_deriv_multiplier(input_value)
+
+        self.assertAlmostEqual(
+            calc_deriv,
+            estimated_deriv
+        )
+
+    def test_deriv(self):
+        # Choose the derivate
+        self.derivative_helper(
+            1
+        )
+
+    def test_deriv_high(self):
+        # Choose the derivate
+        self.derivative_helper(
+            200
+        )
+
+    def test_deriv_low(self):
+        # Choose the derivate
+        self.derivative_helper(
+            -25
+        )
+
+    def test_deriv_zero(self):
+        # Choose the derivate
+        self.derivative_helper(
+            0
+        )
+
+    def test_deriv_underflow(self):
+        # Choose the derivate
+        self.derivative_helper(
+            -40
+        )
+class Test_F(unittest.TestCase):
+    """Test the smooth, continuous function designed
+    to make values positive
+    """
+    def test_zero(self):
+        self.assertEqual(
+            1,
+            utilities.log_exp_function(0)
+        )
+
+    def test_minus_one(self):
+        self.assertEqual(
+            1/np.exp(1),
+            utilities.log_exp_function(-1)
+        )
+
+    def test_one(self):
+        self.assertEqual(
+            np.log(2)+1,
+            utilities.log_exp_function(1)
+        )
