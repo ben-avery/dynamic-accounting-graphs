@@ -1,7 +1,7 @@
 """Main module for the Dynamic Accounting Graph class
 """
 from scipy.stats import poisson
-from numpy import log, exp
+from numpy import log
 
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
 from excitement import Excitement
@@ -313,7 +313,7 @@ class DynamicAccountingGraph():
                 )
             )
 
-    def edge_baseline(self, i, j):
+    def edge_baseline(self, i, j, min_intensity=0.000001):
         """The baseline intensity for edges i->j based
         on the nodes' relationship and the respective
         cumulative balances.
@@ -321,6 +321,8 @@ class DynamicAccountingGraph():
         Args:
             i (int): The index of the source node
             j (int): The index of the destination node
+            min_intensity (str, optional): Prevents the
+                intensity being zero. Default 0.000001
 
         Returns:
             float: The baseline intensity
@@ -361,7 +363,7 @@ class DynamicAccountingGraph():
             full_linear_output
 
         # Make it positive
-        return log_exp_function(full_linear_output)
+        return log_exp_function(full_linear_output) + min_intensity
 
     def edge_intensity(self, i, j):
         """Get the total intensity for a particular edge
@@ -569,7 +571,7 @@ class DynamicAccountingGraph():
 
         # Get the node embeddings
         node_k = self.nodes[k]
-        x_k = node_k.causal_embeddings.dest_value
+        x_k = node_k.causal_embeddings.source_value
         node_l = self.nodes[l]
         x_l = node_l.causal_embeddings.dest_value
 
@@ -601,7 +603,7 @@ class DynamicAccountingGraph():
                 dest_balance
             )
 
-        y_k = node_k.spontaneous_embeddings.dest_value
+        y_k = node_k.spontaneous_embeddings.source_value
         y_l = node_l.spontaneous_embeddings.dest_value
         delZero_delK = \
             calc_delBaselineComparer_delK(
@@ -663,56 +665,26 @@ class DynamicAccountingGraph():
             node_type='dest'
         )
 
-        try:
-            self.base_param_0.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
-                    delBaselineIntensity_delZero *
-                    delBaselineComparer_delMatrix
-                )
-            )
-        except FloatingPointError as e:
-            print(
-                'Base Param 0, Floating point error',
-                inverse_probability,
-                delP_delIntensity,
-                delBaselineIntensity_delZero,
+        self.base_param_0.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delZero *
                 delBaselineComparer_delMatrix
-                )
-            raise e
+            )
+        )
 
-        try:
-            self.base_param_1.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
-                    delBaselineIntensity_delOne *
-                    delBaselineComparer_delMatrix
-                )
-            )
-        except FloatingPointError as e:
-            print(
-                'Base Param 1, Floating point error',
-                inverse_probability,
-                delP_delIntensity,
-                delBaselineIntensity_delZero,
+        self.base_param_1.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delOne *
                 delBaselineComparer_delMatrix
-                )
-            raise e
+            )
+        )
 
-        try:
-            self.base_param_2.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
-                    delBaselineIntensity_delTwo *
-                    delBaselineComparer_delMatrix
-                )
-            )
-        except FloatingPointError as e:
-            print(
-                'Base Param 2, Floating point error',
-                inverse_probability,
-                delP_delIntensity,
-                delBaselineIntensity_delTwo,
+        self.base_param_2.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delTwo *
                 delBaselineComparer_delMatrix
-                )
-            raise e
+            )
+        )
 
         for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
             # Get linear values from the calculations of the
@@ -724,7 +696,7 @@ class DynamicAccountingGraph():
             # Get the node embeddings for the nodes in
             # the excitor edge
             node_i = self.nodes[i]
-            x_i = node_i.causal_embeddings.dest_value
+            x_i = node_i.causal_embeddings.source_value
             node_j = self.nodes[j]
             x_j = node_j.causal_embeddings.dest_value
 

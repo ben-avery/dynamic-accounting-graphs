@@ -989,6 +989,8 @@ class Test_delF(unittest.TestCase):
         self.derivative_helper(
             -40
         )
+
+
 class Test_F(unittest.TestCase):
     """Test the smooth, continuous function designed
     to make values positive
