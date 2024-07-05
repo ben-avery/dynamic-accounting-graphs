@@ -32,6 +32,7 @@ class Node():
 
         # Store node parameters
         self.name = name
+        self.opening_balance = opening_balance
         self.balance = opening_balance
         self.pending_balance_changes = 0
         self.dimension = dimension
@@ -113,6 +114,22 @@ class Node():
         else:
             raise ValueError('Node type must be "source" or "dest"')
 
+    def reset(self, discard_gradient_updates=False):
+        """Reset balance and apply or discard gradient updates
+
+        Args:
+            discard_gradient_updates (bool, optional):
+            Choose whether to discard or apply the pending gradient
+            updates. Defaults to False.
+        """
+
+        if discard_gradient_updates:
+            self.clear_gradient_updates()
+        else:
+            self.apply_gradient_updates()
+
+        self.reset_balance()
+
     def apply_gradient_updates(self):
         """At the end of an epoch, update the node embeddings
         based on the cached updates
@@ -121,6 +138,19 @@ class Node():
         # Update the embeddings
         self.spontaneous_embeddings.apply_gradient_updates()
         self.causal_embeddings.apply_gradient_updates()
+
+    def clear_gradient_updates(self):
+        """Remove any pending gradient updates
+        """
+
+        # Remove pending updates
+        self.spontaneous_embeddings.clear_gradient_updates()
+        self.causal_embeddings.clear_gradient_updates()
+
+    def reset_balance(self):
+        """Reset balance back to opening balance
+        """
+        self.balance = self.opening_balance
 
 class NodeEmbedding():
     """A class to contain the source and destination node
@@ -144,8 +174,9 @@ class NodeEmbedding():
         self.regularisation_rate = regularisation_rate
 
         # Initialise the embeddings randomly
-        self.source_value = np.random.uniform(-1, 1, self.dimension)
-        self.dest_value = np.random.uniform(-1, 1, self.dimension)
+        max_value = np.sqrt(1/self.dimension)
+        self.source_value = np.random.uniform(-max_value, max_value, self.dimension)
+        self.dest_value = np.random.uniform(-max_value, max_value, self.dimension)
 
         # Create attributes to track gradient updates
         self.source_pending_updates = np.zeros(self.dimension)
@@ -191,6 +222,14 @@ class NodeEmbedding():
         # Gradient ascent
         self.source_value += self.source_pending_updates
         self.dest_value += self.dest_pending_updates
+
+        # Reset the cache
+        self.source_pending_updates = np.zeros(self.dimension)
+        self.dest_pending_updates = np.zeros(self.dimension)
+
+    def clear_gradient_updates(self):
+        """Reset the pending updates without applying them
+        """
 
         # Reset the cache
         self.source_pending_updates = np.zeros(self.dimension)
@@ -355,6 +394,20 @@ class EdgeComparer():
         # record the cumulative change to be applied later
         self.pending_updates += self.learning_rate*gradient_update
 
+    def reset(self, discard_gradient_updates=False):
+        """Apply or discard gradient updates
+
+        Args:
+            discard_gradient_updates (bool, optional):
+            Choose whether to discard or apply the pending gradient
+            updates. Defaults to False.
+        """
+
+        if discard_gradient_updates:
+            self.clear_gradient_updates()
+        else:
+            self.apply_gradient_updates()
+
     def apply_gradient_updates(self):
         """At the end of an epoch, update the matrix
         based on the cached updates
@@ -365,6 +418,15 @@ class EdgeComparer():
         self.matrix -= 2*self.regularisation_rate*self.matrix
         # Gradient ascent
         self.matrix += self.pending_updates
+
+        # Reset the cache
+        self.pending_updates = np.zeros(
+            (self.dimension, self.dimension)
+            )
+
+    def clear_gradient_updates(self):
+        """Reset the pending updates without applying them
+        """
 
         # Reset the cache
         self.pending_updates = np.zeros(

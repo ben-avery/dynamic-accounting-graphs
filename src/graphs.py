@@ -905,7 +905,7 @@ class DynamicAccountingGraph():
         self.weibull_beta_generator.apply_gradient_updates()
         self.weibull_weight_generator.apply_gradient_updates()
 
-    def reset(self):
+    def reset(self, discard_gradient_updates=False):
         """Remove edges and excitation to prepare for another
         epoch of training (embeddings and matrice learnings
         are retained)
@@ -922,8 +922,35 @@ class DynamicAccountingGraph():
         self.possible_excitees = dict()
         self.current_excitees = dict()
 
-        # Apply gradient updates
-        self.apply_gradient_updates()
+        # Apply or discard gradient updates and reset
+        # the node balances
+        # - Nodes
+        for node in self.nodes:
+            node.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
+
+        # - Causal matrices
+        self.weibull_alpha_generator.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
+        self.weibull_beta_generator.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
+        self.weibull_weight_generator.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
+
+        # - Spontaneous matrices
+        self.base_param_0.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
+        self.base_param_1.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
+        self.base_param_2.reset(
+                discard_gradient_updates=discard_gradient_updates
+            )
 
         # Update pairs of edges which could
         # excite each other under the updated

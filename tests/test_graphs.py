@@ -44,13 +44,24 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             learning_rate=1
         )
 
-    def derivative_helper(self, i, j, count,
+    def reset_graph(self, edges):
+        self.graph.reset(discard_gradient_updates=True)
+
+        for time, day_edges in edges.items():
+            for i, j, value in day_edges:
+                # Add an edge
+                self.graph.add_edge(i, j, value)
+
+            # Move time on
+            self.graph.increment_time()
+
+    def derivative_helper(self, i, j, count, edges,
                           sales_x_i=None, sales_x_j=None, sales_y_i=None, sales_y_j=None,
                           debtors_x_i=None, debtors_x_j=None, debtors_y_i=None, debtors_y_j=None,
                           bank_x_i=None, bank_x_j=None, bank_y_i=None, bank_y_j=None,
                           A_weight=None, A_alpha=None, A_beta=None,
                           A_zero=None, A_one=None, A_two=None,
-                          epsilon=10**(-9)):
+                          epsilon=10**(-8)):
         node_dimension = 4
 
         # Override any provided parameters
@@ -130,6 +141,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
         else:
             A_two = self.graph.base_param_2.matrix
 
+        # Update the graph excitement based on these parameters
+        self.reset_graph(edges)
+
         # Calculate the function value
         base_value = \
             np.log(self.graph.edge_probability(
@@ -186,6 +200,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             # Adjust the parameter accordingly
             self.graph.nodes[0].causal_embeddings.source_value = sales_x_i + increment
 
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
             # Recalculate the function value
             next_value = \
                 np.log(self.graph.edge_probability(
@@ -212,6 +229,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Adjust the parameter accordingly
             self.graph.nodes[0].causal_embeddings.dest_value = sales_x_j + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
 
             # Recalculate the function value
             next_value = \
@@ -240,6 +260,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             # Adjust the parameter accordingly
             self.graph.nodes[1].causal_embeddings.source_value = debtors_x_i + increment
 
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
             # Recalculate the function value
             next_value = \
                 np.log(self.graph.edge_probability(
@@ -266,6 +289,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Adjust the parameter accordingly
             self.graph.nodes[1].causal_embeddings.dest_value = debtors_x_j + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
 
             # Recalculate the function value
             next_value = \
@@ -294,6 +320,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             # Adjust the parameter accordingly
             self.graph.nodes[2].causal_embeddings.source_value = bank_x_i + increment
 
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
             # Recalculate the function value
             next_value = \
                 np.log(self.graph.edge_probability(
@@ -320,6 +349,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Adjust the parameter accordingly
             self.graph.nodes[2].causal_embeddings.dest_value = bank_x_j + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
 
             # Recalculate the function value
             next_value = \
@@ -348,6 +380,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             # Adjust the parameter accordingly
             self.graph.nodes[0].spontaneous_embeddings.source_value = sales_y_i + increment
 
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
             # Recalculate the function value
             next_value = \
                 np.log(self.graph.edge_probability(
@@ -374,6 +409,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Adjust the parameter accordingly
             self.graph.nodes[0].spontaneous_embeddings.dest_value = sales_y_j + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
 
             # Recalculate the function value
             next_value = \
@@ -402,6 +440,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             # Adjust the parameter accordingly
             self.graph.nodes[1].spontaneous_embeddings.source_value = debtors_y_i + increment
 
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
             # Recalculate the function value
             next_value = \
                 np.log(self.graph.edge_probability(
@@ -428,6 +469,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Adjust the parameter accordingly
             self.graph.nodes[1].spontaneous_embeddings.dest_value = debtors_y_j + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
 
             # Recalculate the function value
             next_value = \
@@ -456,6 +500,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             # Adjust the parameter accordingly
             self.graph.nodes[2].spontaneous_embeddings.source_value = bank_y_i + increment
 
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
             # Recalculate the function value
             next_value = \
                 np.log(self.graph.edge_probability(
@@ -482,6 +529,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Adjust the parameter accordingly
             self.graph.nodes[2].spontaneous_embeddings.dest_value = bank_y_j + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
 
             # Recalculate the function value
             next_value = \
@@ -513,6 +563,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 # Adjust the parameter accordingly
                 self.graph.weibull_alpha_generator.matrix = A_alpha + increment
 
+                # Update the graph excitement based on these parameters
+                self.reset_graph(edges)
+
                 # Recalculate the function value
                 next_value = \
                     np.log(self.graph.edge_probability(
@@ -542,6 +595,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
                 # Adjust the parameter accordingly
                 self.graph.weibull_beta_generator.matrix = A_beta + increment
+
+                # Update the graph excitement based on these parameters
+                self.reset_graph(edges)
 
                 # Recalculate the function value
                 next_value = \
@@ -573,6 +629,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 # Adjust the parameter accordingly
                 self.graph.weibull_weight_generator.matrix = A_weight + increment
 
+                # Update the graph excitement based on these parameters
+                self.reset_graph(edges)
+
                 # Recalculate the function value
                 next_value = \
                     np.log(self.graph.edge_probability(
@@ -602,6 +661,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
                 # Adjust the parameter accordingly
                 self.graph.base_param_0.matrix = A_zero + increment
+
+                # Update the graph excitement based on these parameters
+                self.reset_graph(edges)
 
                 # Recalculate the function value
                 next_value = \
@@ -633,6 +695,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 # Adjust the parameter accordingly
                 self.graph.base_param_1.matrix = A_one + increment
 
+                # Update the graph excitement based on these parameters
+                self.reset_graph(edges)
+
                 # Recalculate the function value
                 next_value = \
                     np.log(self.graph.edge_probability(
@@ -663,6 +728,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 # Adjust the parameter accordingly
                 self.graph.base_param_2.matrix = A_two + increment
 
+                # Update the graph excitement based on these parameters
+                self.reset_graph(edges)
+
                 # Recalculate the function value
                 next_value = \
                     np.log(self.graph.edge_probability(
@@ -683,19 +751,47 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                     )
 
     def test_deriv(self):
+        # Define edges
+        edges = {}
+
         # Choose the derivate
         self.derivative_helper(
-            0, 1, 2
+            0, 1, 2,
+            edges=edges
         )
 
     def test_with_edge(self):
-        # Add an edge
-        self.graph.add_edge(0, 1, 10)
-
-        # Move time on
-        self.graph.increment_time()
+        # Define edges
+        edges = {
+            0: [(0, 1, 10)]
+        }
 
         # Calculate the derivate
         self.derivative_helper(
-            0, 1, 2
+            0, 1, 2,
+            edges=edges
+        )
+
+    def test_with_edge_debtor_settle(self):
+        # Define edges
+        edges = {
+            0: [(1, 2, 0)]
+        }
+
+        # Calculate the derivate
+        self.derivative_helper(
+            0, 1, 2,
+            edges=edges
+        )
+
+    def test_with_edge_cash_sale(self):
+        # Define edges
+        edges = {
+            0: [(0, 1, 10)]
+        }
+
+        # Calculate the derivate
+        self.derivative_helper(
+            0, 2, 3,
+            edges=edges
         )
