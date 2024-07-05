@@ -174,9 +174,9 @@ class NodeEmbedding():
         self.regularisation_rate = regularisation_rate
 
         # Initialise the embeddings randomly
-        max_value = np.sqrt(1/self.dimension)
-        self.source_value = np.random.uniform(-max_value, max_value, self.dimension)
-        self.dest_value = np.random.uniform(-max_value, max_value, self.dimension)
+        max_value = 2*np.sqrt(1/self.dimension)
+        self.source_value = np.random.uniform(0, max_value, self.dimension)
+        self.dest_value = np.random.uniform(0, max_value, self.dimension)
 
         # Create attributes to track gradient updates
         self.source_pending_updates = np.zeros(self.dimension)
@@ -321,9 +321,10 @@ class EdgeComparer():
 
         if mode == 'matrix':
             # Initialise a random matrix
+            max_value = 2/self.dimension
             self.matrix = \
                 np.random.uniform(
-                    -1, 1, (self.dimension, self.dimension)
+                    0, max_value, (self.dimension, self.dimension)
                 )
 
             # Overwrite the compare_embeddings method (to save
