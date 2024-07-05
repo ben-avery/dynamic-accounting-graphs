@@ -60,6 +60,10 @@ class Excitement():
         # excitor edge occured
         self.time = 0
 
+        # Start dormant, so that there's no excitation on the
+        # day it occurs
+        self.dormant = True
+
         # Record the relevant nodes
         self.excitor_nodes = excitor_nodes
         self.excitee_nodes = excitee_nodes
@@ -80,18 +84,14 @@ class Excitement():
         # allows half of the calculation at time T to be
         # re-used at time T+1. Therefore, the two parts
         # are stored separately.
-        self.prob_parts = (
-            self.prob_part(self.time),
-            -self.prob_part(self.time+1)
-        )
+        self.prob_parts = (0, 0)
         self.probability = sum(self.prob_parts)
 
         # Record the remaining probability of this
         # excitee edge being excited. Once it goes
         # below the threshold, the excite is dead.
         self.alive_threshold = alive_threshold
-        self.remaining_weight = \
-            self.weibull_weight - self.probability
+        self.remaining_weight = self.weibull_weight
 
     def prob_part(self, time):
         """Return weighted exp(-(x/alpha)**beta), which can
@@ -122,15 +122,25 @@ class Excitement():
         if not self.alive:
             raise ValueError('Excitement is not alive')
 
-        # Increment time
-        self.time += 1
+        if self.dormant:
+            # If this is the first time step, initialise the
+            # probability parts
+            self.dormant = False
 
-        # Re-use the second probability part, and calculate
-        # the new part
-        self.prob_parts = (
-            -self.prob_parts[1],
-            -self.prob_part(self.time+1)
-        )
+            self.prob_parts = (
+                self.prob_part(self.time),
+                -self.prob_part(self.time+1)
+            )
+        else:
+            # Increment time
+            self.time += 1
+
+            # Re-use the second probability part, and calculate
+            # the new part
+            self.prob_parts = (
+                -self.prob_parts[1],
+                -self.prob_part(self.time+1)
+            )
 
         # The probability is the sum of the two parts
         self.probability = sum(self.prob_parts)

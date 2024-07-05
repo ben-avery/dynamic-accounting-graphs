@@ -389,6 +389,7 @@ class DynamicAccountingGraph():
             intensity += sum(
                 excite.probability
                 for excite in self.current_excitees[nodes]
+                if not excite.dormant
                 )
 
             # Record all the necessary values for the gradient
@@ -397,38 +398,46 @@ class DynamicAccountingGraph():
             # Record the Weibull parameters
             self.gradient_log['alphas'] = \
                 [excite.weibull_alpha
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
             self.gradient_log['betas'] = \
                 [excite.weibull_beta
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
             # Record the weighting of the Weibull distribution
             self.gradient_log['weights'] = \
                 [excite.weibull_weight
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
 
             # Record the linear value from the parameter
             # calculations (before passed through the smooth,
             # continuous function mapping R->R+)
             self.gradient_log['lin_alphas'] = \
                 [excite.lin_val_alpha
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
             self.gradient_log['lin_betas'] = \
                 [excite.lin_val_beta
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
             self.gradient_log['lin_weights'] = \
                 [excite.lin_val_weight
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
 
             # Record the original time that the excitor edge
             # occurred
             self.gradient_log['times'] = \
                 [excite.time
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
 
             # Record the nodes in the excitor edge
             self.gradient_log['excitor_nodes'] = \
                 [excite.excitor_nodes
-                 for excite in self.current_excitees[nodes]]
+                 for excite in self.current_excitees[nodes]
+                 if not excite.dormant]
         else:
             # Record empty lists if there are no 'excites'
             self.gradient_log['alphas'] = []

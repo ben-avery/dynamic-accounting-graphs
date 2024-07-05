@@ -33,6 +33,9 @@ class TestIncrementTime(unittest.TestCase):
             alive_threshold=self.alive_threshold
         )
 
+        # Wake up the excitation
+        self.excitement.increment_probability()
+
     def test_time_increasing(self):
         """Test that the time attribute is increased
         """
@@ -55,6 +58,30 @@ class TestIncrementTime(unittest.TestCase):
 
             self.excitement.increment_time()
 
+    def test_start_dormant(self):
+        # Create a new excitement
+        new_excitement = excitement.Excitement(
+            weibull_weight=self.weibull_weight,
+            weibull_alpha=self.weibull_alpha,
+            weibull_beta=self.weibull_beta,
+            lin_val_weight=self.lin_val_weight,
+            lin_val_alpha=self.lin_val_alpha,
+            lin_val_beta=self.lin_val_beta,
+            excitor_nodes=self.excitor_nodes,
+            excitee_nodes=self.excitee_nodes,
+            alive_threshold=self.alive_threshold
+        )
+
+        # Check that it starts dormant with no probability
+        self.assertTrue(new_excitement.dormant)
+        self.assertEqual(new_excitement.probability, 0)
+
+        # Wake up the excitation
+        new_excitement.increment_probability()
+
+        # Check that it is no longer dormant and has a probability
+        self.assertFalse(new_excitement.dormant)
+        self.assertGreater(new_excitement.probability, 0)
 
 class TestProbabilities(unittest.TestCase):
     """Tests ensuring that the probabilities are
@@ -84,6 +111,9 @@ class TestProbabilities(unittest.TestCase):
             excitee_nodes=self.excitee_nodes,
             alive_threshold=self.alive_threshold
         )
+
+        # Wake up the excitation
+        self.excitement.increment_probability()
 
     def test_probability_accurate(self):
         """Compare the recursive probability to a direct
@@ -145,6 +175,9 @@ class TestAliveThreshold(unittest.TestCase):
             excitee_nodes=self.excitee_nodes,
             alive_threshold=self.alive_threshold
         )
+
+        # Wake up the excitation
+        self.excitement.increment_probability()
 
     def test_excitement_dies(self):
         time = 0

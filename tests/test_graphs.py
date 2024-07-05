@@ -795,3 +795,18 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             0, 2, 3,
             edges=edges
         )
+
+    def test_with_multiple_edges(self):
+        # Define edges
+        edges = {
+            0: [(0, 1, 10)],
+            1: [],
+            2: [(0, 2, -1), (1, 2, 0.5)],
+            3: []
+        }
+
+        # Calculate the derivate
+        self.derivative_helper(
+            0, 1, 2,
+            edges=edges
+        )
