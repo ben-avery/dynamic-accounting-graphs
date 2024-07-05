@@ -870,21 +870,21 @@ class DynamicAccountingGraph():
             # Weight matrix
             self.weibull_weight_generator.add_gradient_update(
                 inverse_probability * delP_delIntensity *
-                delIntensity_delAlpha[excite_index] *
+                delIntensity_delWeight[excite_index] *
                 delWeightComparerdelMatrix
             )
 
             # Alpha matrix
             self.weibull_alpha_generator.add_gradient_update(
                 inverse_probability * delP_delIntensity *
-                delIntensity_delBeta[excite_index] *
+                delIntensity_delAlpha[excite_index] *
                 delAlphaComparerdelMatrix
             )
 
             # Beta matrix
             self.weibull_beta_generator.add_gradient_update(
                 inverse_probability * delP_delIntensity *
-                delIntensity_delWeight[excite_index] *
+                delIntensity_delBeta[excite_index] *
                 delBetaComparerdelMatrix
             )
 
