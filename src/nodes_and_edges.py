@@ -2,7 +2,7 @@
 """
 import numpy as np
 
-from utilities import log_exp_function
+from utilities import log_exp_function, adam_update
 
 
 class Node():
@@ -182,6 +182,15 @@ class NodeEmbedding():
         self.source_pending_updates = np.zeros(self.dimension)
         self.dest_pending_updates = np.zeros(self.dimension)
 
+        # Track the number of gradient steps
+        self.learning_steps = 0
+
+        # Initialise moment estimations
+        self.source_prev_first_moment = 0
+        self.source_prev_second_moment = 0
+        self.dest_prev_first_moment = 0
+        self.dest_prev_second_moment = 0
+
     def add_source_gradient_update(self, gradient_update):
         """Store a gradient update, to be applied to the node
         embedding (as a source) at the end of the epoch.
@@ -194,7 +203,7 @@ class NodeEmbedding():
 
         # Multiply the given change by the learning rate, and
         # record the cumulative change to be applied later
-        self.source_pending_updates += self.learning_rate*gradient_update
+        self.source_pending_updates += gradient_update
 
     def add_dest_gradient_update(self, gradient_update):
         """Store a gradient update, to be applied to the node
@@ -208,20 +217,42 @@ class NodeEmbedding():
 
         # Multiply the given change by the learning rate, and
         # record the cumulative change to be applied later
-        self.dest_pending_updates += self.learning_rate*gradient_update
+        self.dest_pending_updates += gradient_update
 
     def apply_gradient_updates(self):
         """At the end of an epoch, update the node embeddings
         based on the cached updates
         """
 
-        # Update the embeddings
+        # Increase the number of learning steps
+        self.learning_steps += 1
+
         # Regularisation penalty
-        self.source_value -= 2*self.regularisation_rate*self.source_value
-        self.dest_value -= 2*self.regularisation_rate*self.dest_value
-        # Gradient ascent
-        self.source_value += self.source_pending_updates
-        self.dest_value += self.dest_pending_updates
+        source_regularisation = -2*self.regularisation_rate*self.source_value
+        dest_regularisation = -2*self.regularisation_rate*self.dest_value
+
+        # Adam update
+        self.source_value, self.source_prev_first_moment, self.source_prev_second_moment = \
+            adam_update(
+                time=self.learning_steps,
+                partial_deriv=-self.source_pending_updates,
+                prev_first_moment=self.source_prev_first_moment,
+                prev_second_moment=self.source_prev_second_moment,
+                prev_parameters=self.source_value
+            )
+
+        self.dest_value, self.dest_prev_first_moment, self.dest_prev_second_moment = \
+            adam_update(
+                time=self.learning_steps,
+                partial_deriv=-self.dest_pending_updates,
+                prev_first_moment=self.dest_prev_first_moment,
+                prev_second_moment=self.dest_prev_second_moment,
+                prev_parameters=self.dest_value
+            )
+
+        # Apply regularisation penalty
+        self.source_value -= source_regularisation
+        self.dest_value -= dest_regularisation
 
         # Reset the cache
         self.source_pending_updates = np.zeros(self.dimension)
@@ -353,6 +384,13 @@ class EdgeComparer():
             (self.dimension, self.dimension)
             )
 
+        # Track the number of gradient steps
+        self.learning_steps = 0
+
+        # Initialise moment estimations
+        self.prev_first_moment = 0
+        self.prev_second_moment = 0
+
     def matrix_form(self, e_i, e_j):
         """The function used by the 'matrix' mode. A
         matrix is included inside a dot-product of the two
@@ -393,7 +431,7 @@ class EdgeComparer():
 
         # Multiply the given change by the learning rate, and
         # record the cumulative change to be applied later
-        self.pending_updates += self.learning_rate*gradient_update
+        self.pending_updates += gradient_update
 
     def reset(self, discard_gradient_updates=False):
         """Apply or discard gradient updates
@@ -414,11 +452,26 @@ class EdgeComparer():
         based on the cached updates
         """
 
-        # Update the matrix
+
+        # Increase the number of learning steps
+        self.learning_steps += 1
+
         # Regularisation penalty
-        self.matrix -= 2*self.regularisation_rate*self.matrix
-        # Gradient ascent
-        self.matrix += self.pending_updates
+        regularisation = -2*self.regularisation_rate*self.matrix
+
+        # Adam update
+        self.matrix, self.prev_first_moment, self.prev_second_moment = \
+            adam_update(
+                time=self.learning_steps,
+                partial_deriv=-self.pending_updates,
+                prev_first_moment=self.prev_first_moment,
+                prev_second_moment=self.prev_second_moment,
+                prev_parameters=self.matrix
+            )
+
+
+        # Apply regularisation penalty
+        self.matrix -= regularisation
 
         # Reset the cache
         self.pending_updates = np.zeros(

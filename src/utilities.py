@@ -433,3 +433,48 @@ def log_exp_deriv_multiplier(linear_value):
     else:
         # Logarithmic portion
         return 1 / (linear_value + 1)
+
+
+def adam_update(
+        time, partial_deriv,
+        prev_first_moment, prev_second_moment, prev_parameters,
+        step_size=0.001, decay_one=0.9, decay_two=0.999,
+        epsilon=10**(-8)):
+    """Implementation of Adam optimisation algorithm
+    Ref - Kingma, Ba, 'Adam: A Method for Stochastic Optimisation', 2014,
+    https://doi.org/10.48550/arXiv.1412.6980
+
+    Args:
+        time (int): The number of learning steps taken
+        partial_deriv (float/np.array): The partial derivative of
+            the objective with respect to the parameters
+        prev_first_moment (float/np.array): The estimate of the first
+            moment from the previous calculation
+        prev_second_moment (float/np.array): The estimate of the second
+            moment from the previous calculation
+        prev_parameters (float/np.array): The current value for the
+            parameters before this update
+        step_size (float, optional): Step size hyperparameter.
+            Defaults to 0.001.
+        decay_one (float, optional): Hyperparameter controlling the
+            exponential decay of the first moment estimate.
+            Defaults to 0.9.
+        decay_two (float, optional): Hyperparameter controlling the
+            exponential decay of the second moment estimate.
+             Defaults to 0.999.
+        epsilon (float, optional): Small value preventing
+            division by zero.
+            Defaults to 10**(-8).
+    """
+
+    # Update the moment estimates
+    first_moment = decay_one*prev_first_moment + (1-decay_one)*(partial_deriv)
+    second_moment = decay_two*prev_second_moment + (1-decay_two)*(partial_deriv*partial_deriv)
+
+    # Get the adapted step size
+    adapted_step_size = step_size*np.sqrt(1-decay_two**time)/(1-decay_one**time)
+
+    # Update the parameters
+    parameters = prev_parameters - adapted_step_size*first_moment/(np.sqrt(second_moment)+epsilon)
+
+    return parameters, first_moment, second_moment
