@@ -1012,3 +1012,87 @@ class Test_F(unittest.TestCase):
             np.log(2)+1,
             utilities.log_exp_function(1)
         )
+
+
+class Test_Adam(unittest.TestCase):
+    """Test the Adam optimiser
+    """
+    def setUp(self):
+        self.true_gradient = 5
+        self.true_intercept = -1
+
+    def function_output(self, input_value):
+        return input_value*self.true_gradient + self.true_intercept
+
+    def partial_deriv_gradient(self, input_value, estimated_gradient, estimated_intercept):
+        return -2*(
+            input_value*(self.true_gradient - estimated_gradient)
+            + (self.true_intercept - estimated_intercept)
+        ) * input_value
+
+    def partial_deriv_intercept(self, input_value, estimated_gradient, estimated_intercept):
+        return -2*(
+            input_value*(self.true_gradient - estimated_gradient)
+            + (self.true_intercept - estimated_intercept)
+        )
+
+    def test_linear(self):
+        # Fix random seed
+        np.random.seed(628496)
+
+        # Initialise guess
+        estimated_gradient = 1
+        estimated_intercept = 1
+
+        # Set up variables
+        last_gradient = 0
+        last_intercept = 0
+        prev_grad_first_moment = 0
+        prev_intercept_first_moment = 0
+        prev_grad_second_moment = 0
+        prev_intercept_second_moment = 0
+        time = 0
+
+        # Iterate until convergence
+        while abs(estimated_gradient-last_gradient) > 0.000000001 or \
+                abs(estimated_intercept-last_intercept) > 0.000000001:
+            # Increase time
+            time += 1
+
+            # Remember the previous parameters (to check for convergence)
+            last_gradient = estimated_gradient
+            last_intercept = estimated_intercept
+
+            # Pick a new random point
+            x = np.random.randint(-15, 15)
+
+            # Get the next parameters from the Adam algorithm
+            estimated_gradient, prev_grad_first_moment, prev_grad_second_moment = \
+                utilities.adam_update(
+                    time=time,
+                    partial_deriv=self.partial_deriv_gradient(x, estimated_gradient, estimated_intercept),
+                    prev_first_moment=prev_grad_first_moment,
+                    prev_second_moment=prev_grad_second_moment,
+                    prev_parameters=estimated_gradient,
+                    step_size=0.0001
+                )
+            estimated_intercept, prev_intercept_first_moment, prev_intercept_second_moment = \
+                utilities.adam_update(
+                    time=time,
+                    partial_deriv=self.partial_deriv_intercept(x, estimated_gradient, estimated_intercept),
+                    prev_first_moment=prev_intercept_first_moment,
+                    prev_second_moment=prev_intercept_second_moment,
+                    prev_parameters=estimated_intercept,
+                    step_size=0.0001
+                )
+
+        # Check that the true parameters were recovered
+        self.assertAlmostEqual(
+            self.true_gradient, estimated_gradient,
+            places=6
+        )
+
+        self.assertAlmostEqual(
+            self.true_intercept, estimated_intercept,
+            places=6
+        )
