@@ -11,7 +11,7 @@ class Node():
     """
     def __init__(self, name, opening_balance, dimension,
                  learning_rate=0.001, regularisation_rate=0.01,
-                 meta_data=None):
+                 mode='matrix', meta_data=None):
         """Initialise the class
 
         Args:
@@ -23,6 +23,9 @@ class Node():
                 gradient ascent algorithm. Defaults to 0.001.
             regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty. Defaults to 0.01.
+            mode (str, optional): The method to use for generating a
+                real-valued output. The valid options are 'dot' or 'matrix'.
+                Defaults to 'matrix'.
             meta_data (dict, optional): A dictionary of other information
                 about a node which is irrelevant to the training. For example,
                 it may be useful for downstream applications to know the
@@ -40,16 +43,153 @@ class Node():
         self.learning_rate = learning_rate
         self.regularisation_rate = regularisation_rate
 
-        # Create the embeddings of the node (as a source and
-        # destination separately)
-        self.spontaneous_embeddings = \
-            NodeEmbedding(dimension=dimension,
-                          learning_rate=self.learning_rate,
-                          regularisation_rate=self.regularisation_rate)
-        self.causal_embeddings = \
-            NodeEmbedding(dimension=dimension,
-                          learning_rate=self.learning_rate,
-                          regularisation_rate=self.regularisation_rate)
+        # Create the embeddings of the node
+        self.mode = mode
+        if self.mode == 'matrix':
+            self.spontaneous_source = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.spontaneous_dest = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+            self.causal_source = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_dest = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+        elif self.mode == 'dot':
+            self.spontaneous_source_0 = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.spontaneous_source_1 = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.spontaneous_source_2 = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+            self.spontaneous_dest_0 = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.spontaneous_dest_1 = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.spontaneous_dest_2 = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+            self.causal_excitor_source_alpha = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitor_source_beta = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitor_source_weight = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+            self.causal_excitor_dest_alpha = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitor_dest_beta = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitor_dest_weight = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+            self.causal_excitee_source_alpha = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitee_source_beta = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitee_source_weight = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+
+            self.causal_excitee_dest_alpha = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitee_dest_beta = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+            self.causal_excitee_dest_weight = \
+                NodeEmbedding(
+                    dimension=dimension,
+                    learning_rate=self.learning_rate,
+                    regularisation_rate=self.regularisation_rate
+                )
+        else:
+            raise ValueError(
+                f'Node mode {mode} is not recognised'
+            )
 
     def increment_time(self):
         """Advance to the next day
@@ -65,54 +205,6 @@ class Node():
             change (float): The value to change by
         """
         self.pending_balance_changes += change
-
-    def add_spontaneous_gradient_update(
-            self, gradient_update, node_type):
-        """Store a gradient update, to be applied to the 
-        spontaneous node embedding at the end of the epoch.
-
-        Args:
-            gradient_update (np.array): The change in the source
-                node embedding, as given by the gradient ascent
-                algorithm for a single excitee
-            node_type (str): Either 'source' or 'dest'
-        """
-
-        # Add the update
-        if node_type == 'source':
-            self.spontaneous_embeddings.add_source_gradient_update(
-                gradient_update
-            )
-        elif node_type == 'dest':
-            self.spontaneous_embeddings.add_dest_gradient_update(
-                gradient_update
-            )
-        else:
-            raise ValueError('Node type must be "source" or "dest"')
-
-    def add_causal_gradient_update(
-            self, gradient_update, node_type):
-        """Store a gradient update, to be applied to the 
-        causal node embedding at the end of the epoch.
-
-        Args:
-            gradient_update (np.array): The change in the source
-                node embedding, as given by the gradient ascent
-                algorithm for a single excitee
-            node_type (str): Either 'source' or 'dest'
-        """
-
-        # Add the update
-        if node_type == 'source':
-            self.causal_embeddings.add_source_gradient_update(
-                gradient_update
-            )
-        elif node_type == 'dest':
-            self.causal_embeddings.add_dest_gradient_update(
-                gradient_update
-            )
-        else:
-            raise ValueError('Node type must be "source" or "dest"')
 
     def reset(self, discard_gradient_updates=False):
         """Reset balance and apply or discard gradient updates
@@ -136,16 +228,82 @@ class Node():
         """
 
         # Update the embeddings
-        self.spontaneous_embeddings.apply_gradient_updates()
-        self.causal_embeddings.apply_gradient_updates()
+        if self.mode == 'matrix':
+            self.spontaneous_source.apply_gradient_updates()
+            self.spontaneous_dest.apply_gradient_updates()
+
+            self.causal_source.apply_gradient_updates()
+            self.causal_dest.apply_gradient_updates()
+
+        elif self.mode == 'dot':
+            self.spontaneous_source_0.apply_gradient_updates()
+            self.spontaneous_source_1.apply_gradient_updates()
+            self.spontaneous_source_2.apply_gradient_updates()
+
+            self.spontaneous_dest_0.apply_gradient_updates()
+            self.spontaneous_dest_1.apply_gradient_updates()
+            self.spontaneous_dest_2.apply_gradient_updates()
+
+            self.causal_excitor_source_alpha.apply_gradient_updates()
+            self.causal_excitor_source_beta.apply_gradient_updates()
+            self.causal_excitor_source_weight.apply_gradient_updates()
+
+            self.causal_excitor_dest_alpha.apply_gradient_updates()
+            self.causal_excitor_dest_beta.apply_gradient_updates()
+            self.causal_excitor_dest_weight.apply_gradient_updates()
+
+            self.causal_excitee_source_alpha.apply_gradient_updates()
+            self.causal_excitee_source_beta.apply_gradient_updates()
+            self.causal_excitee_source_weight.apply_gradient_updates()
+
+            self.causal_excitee_dest_alpha.apply_gradient_updates()
+            self.causal_excitee_dest_beta.apply_gradient_updates()
+            self.causal_excitee_dest_weight.apply_gradient_updates()
+        else:
+            raise ValueError(
+                f'Node mode {self.mode} is not recognised'
+            )
 
     def clear_gradient_updates(self):
         """Remove any pending gradient updates
         """
 
         # Remove pending updates
-        self.spontaneous_embeddings.clear_gradient_updates()
-        self.causal_embeddings.clear_gradient_updates()
+        if self.mode == 'matrix':
+            self.spontaneous_source.clear_gradient_updates()
+            self.spontaneous_dest.clear_gradient_updates()
+
+            self.causal_source.clear_gradient_updates()
+            self.causal_dest.clear_gradient_updates()
+
+        elif self.mode == 'dot':
+            self.spontaneous_source_0.clear_gradient_updates()
+            self.spontaneous_source_1.clear_gradient_updates()
+            self.spontaneous_source_2.clear_gradient_updates()
+
+            self.spontaneous_dest_0.clear_gradient_updates()
+            self.spontaneous_dest_1.clear_gradient_updates()
+            self.spontaneous_dest_2.clear_gradient_updates()
+
+            self.causal_excitor_source_alpha.clear_gradient_updates()
+            self.causal_excitor_source_beta.clear_gradient_updates()
+            self.causal_excitor_source_weight.clear_gradient_updates()
+
+            self.causal_excitor_dest_alpha.clear_gradient_updates()
+            self.causal_excitor_dest_beta.clear_gradient_updates()
+            self.causal_excitor_dest_weight.clear_gradient_updates()
+
+            self.causal_excitee_source_alpha.clear_gradient_updates()
+            self.causal_excitee_source_beta.clear_gradient_updates()
+            self.causal_excitee_source_weight.clear_gradient_updates()
+
+            self.causal_excitee_dest_alpha.clear_gradient_updates()
+            self.causal_excitee_dest_beta.clear_gradient_updates()
+            self.causal_excitee_dest_weight.clear_gradient_updates()
+        else:
+            raise ValueError(
+                f'Node mode {self.mode} is not recognised'
+            )
 
     def reset_balance(self):
         """Reset balance back to opening balance
@@ -175,25 +333,21 @@ class NodeEmbedding():
 
         # Initialise the embeddings randomly
         max_value = 2*np.sqrt(1/self.dimension)
-        self.source_value = np.random.uniform(0, max_value, self.dimension)
-        self.dest_value = np.random.uniform(0, max_value, self.dimension)
+        self.value = np.random.uniform(0, max_value, self.dimension)
 
         # Create attributes to track gradient updates
-        self.source_pending_updates = np.zeros(self.dimension)
-        self.dest_pending_updates = np.zeros(self.dimension)
+        self.pending_updates = np.zeros(self.dimension)
 
         # Track the number of gradient steps
         self.learning_steps = 0
 
         # Initialise moment estimations
-        self.source_prev_first_moment = 0
-        self.source_prev_second_moment = 0
-        self.dest_prev_first_moment = 0
-        self.dest_prev_second_moment = 0
+        self.prev_first_moment = 0
+        self.prev_second_moment = 0
 
-    def add_source_gradient_update(self, gradient_update):
+    def add_gradient_update(self, gradient_update):
         """Store a gradient update, to be applied to the node
-        embedding (as a source) at the end of the epoch.
+        embedding at the end of the epoch.
 
         Args:
             gradient_update (np.array): The change in the source
@@ -201,26 +355,11 @@ class NodeEmbedding():
                 algorithm for a single excitee
         """
 
-        # Multiply the given change by the learning rate, and
-        # record the cumulative change to be applied later
-        self.source_pending_updates += gradient_update
-
-    def add_dest_gradient_update(self, gradient_update):
-        """Store a gradient update, to be applied to the node
-        embedding (as a destination) at the end of the epoch.
-
-        Args:
-            gradient_update (np.array): The change in the destination
-                node embedding, as given by the gradient ascent
-                algorithm for a single excitee
-        """
-
-        # Multiply the given change by the learning rate, and
-        # record the cumulative change to be applied later
-        self.dest_pending_updates += gradient_update
+        # Record the cumulative change to be applied later
+        self.pending_updates += gradient_update
 
     def apply_gradient_updates(self):
-        """At the end of an epoch, update the node embeddings
+        """At the end of an epoch, update the node embedding
         based on the cached updates
         """
 
@@ -228,43 +367,30 @@ class NodeEmbedding():
         self.learning_steps += 1
 
         # Regularisation penalty
-        source_regularisation = -2*self.regularisation_rate*self.source_value
-        dest_regularisation = -2*self.regularisation_rate*self.dest_value
+        regularisation = -2*self.regularisation_rate*self.value
 
         # Adam update
-        self.source_value, self.source_prev_first_moment, self.source_prev_second_moment = \
+        self.value, self.prev_first_moment, self.prev_second_moment = \
             adam_update(
                 time=self.learning_steps,
-                partial_deriv=-self.source_pending_updates,
-                prev_first_moment=self.source_prev_first_moment,
-                prev_second_moment=self.source_prev_second_moment,
-                prev_parameters=self.source_value
-            )
-
-        self.dest_value, self.dest_prev_first_moment, self.dest_prev_second_moment = \
-            adam_update(
-                time=self.learning_steps,
-                partial_deriv=-self.dest_pending_updates,
-                prev_first_moment=self.dest_prev_first_moment,
-                prev_second_moment=self.dest_prev_second_moment,
-                prev_parameters=self.dest_value
+                partial_deriv=-self.pending_updates,
+                prev_first_moment=self.prev_first_moment,
+                prev_second_moment=self.prev_second_moment,
+                prev_parameters=self.value
             )
 
         # Apply regularisation penalty
-        self.source_value -= source_regularisation
-        self.dest_value -= dest_regularisation
+        self.value -= regularisation
 
         # Reset the cache
-        self.source_pending_updates = np.zeros(self.dimension)
-        self.dest_pending_updates = np.zeros(self.dimension)
+        self.pending_updates = np.zeros(self.dimension)
 
     def clear_gradient_updates(self):
         """Reset the pending updates without applying them
         """
 
         # Reset the cache
-        self.source_pending_updates = np.zeros(self.dimension)
-        self.dest_pending_updates = np.zeros(self.dimension)
+        self.pending_updates = np.zeros(self.dimension)
 
 class EdgeEmbedder():
     """A class to combine two node embeddings into an edge embedding
@@ -275,7 +401,7 @@ class EdgeEmbedder():
         Args:
             input_dimension (int): The dimension of the node embeddings
             mode (str, optional): The method used to combine the node embeddings.
-                Only concatenate is implemented currently.
+                Can be 'concatenate' or 'hadamard'.
                 Defaults to 'concatenate'.
 
         Raises:
@@ -293,6 +419,13 @@ class EdgeEmbedder():
             # Concatenating the embeddings will double the
             # dimension
             self.output_dimension = input_dimension * 2
+        elif mode=='hadamard':
+            # Overwrite the embed_edge method (to save checking
+            # the mode attribute every time it's called)
+            self.embed_edge = self.hadamard
+
+            # The dimension will stay the same
+            self.output_dimension = input_dimension
         else:
             raise ValueError(
                 f'Edge embedder mode {mode} is not recognised'
@@ -312,6 +445,20 @@ class EdgeEmbedder():
         """
         return np.hstack((x_i, x_j))
 
+    def hadamard(self, x_i, x_j):
+        """The edge embedding method for 'hadamard', which
+        creates an edge embedding by taking the hadamard
+        product of the two node embeddings.
+
+        Args:
+            x_i (np.array): The node embedding for the source
+            x_j (np.array): The node emebedding for the destination
+
+        Returns:
+            np.array: The edge embedding
+        """
+        return x_i * x_j
+
 
 class EdgeComparer():
     """A class for generating positive, real numbers from two
@@ -330,8 +477,7 @@ class EdgeComparer():
             regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty. Defaults to 0.01.
             mode (str, optional): The method to use for generating a
-                real-valued output. The 'vector' option (dot-product)
-                is removed, and therefore only 'matrix' is implemented.
+                real-valued output. The valid options are 'dot' or 'matrix'.
                 Defaults to 'matrix'.
             positive_output (bool, optional): Whether a function should
                 be applied to the output to ensure it is positive.
@@ -362,34 +508,41 @@ class EdgeComparer():
             # checking the mode attribute every time it is
             # called)
             self.compare_embeddings = self.matrix_form
+
+            # Save the learning rates
+            self.learning_rate = learning_rate
+            self.regularisation_rate = regularisation_rate
+
+            # Set up a variable to store pending gradient updates
+            # (to be applied at the end of each epoch)
+            self.pending_updates = np.zeros(
+                (self.dimension, self.dimension)
+                )
+
+            # Track the number of gradient steps
+            self.learning_steps = 0
+
+            # Initialise moment estimations
+            self.prev_first_moment = 0
+            self.prev_second_moment = 0
+
+        elif mode == 'dot':
+            # Overwrite the compare_embeddings method (to save
+            # checking the mode attribute every time it is
+            # called)
+            self.compare_embeddings = self.dot_product
         else:
             raise ValueError(
                 f'Edge comparer mode {mode} is not recognised'
             )
 
-        # To ensure that the output is positive, the result
-        # of the linear function is passed through a smooth,
-        # continuous function that is always positive. For
-        # the gradient-ascent algorithm, the value of the
-        # linear function is required.
-        self.last_linear_value = None
-
-        # Save the learning rates
-        self.learning_rate = learning_rate
-        self.regularisation_rate = regularisation_rate
-
-        # Set up a variable to store pending gradient updates
-        # (to be applied at the end of each epoch)
-        self.pending_updates = np.zeros(
-            (self.dimension, self.dimension)
-            )
-
-        # Track the number of gradient steps
-        self.learning_steps = 0
-
-        # Initialise moment estimations
-        self.prev_first_moment = 0
-        self.prev_second_moment = 0
+        if self.positive_output:
+            # To ensure that the output is positive, the result
+            # of the linear function is passed through a smooth,
+            # continuous function that is always positive. For
+            # the gradient-ascent algorithm, the value of the
+            # linear function is required.
+            self.last_linear_value = None
 
     def matrix_form(self, e_i, e_j):
         """The function used by the 'matrix' mode. A
@@ -419,9 +572,36 @@ class EdgeComparer():
         else:
             return linear_value
 
+    def dot_product(self, e_i, e_j):
+        """The function used by the 'dot' mode. The function
+        returns the dot product of the two embeddings. If
+        self.positive_output is set, this is then passed through
+        the smooth, continuous, positive function.
+
+        Args:
+            e_i (np.array): First embedding
+            e_j (np.array): Second embedding
+
+        Returns:
+            float: A positive real number
+        """
+
+        # Calculate the linear part of the function
+        linear_value = e_i.T @ e_j
+
+        if self.positive_output:
+            # Cache this value for the gradient-ascent algorithm
+            self.last_linear_value = linear_value
+
+            # Apply the piecewise function to make the output
+            # certainly positive
+            return log_exp_function(linear_value) + self.min_at
+        else:
+            return linear_value
+
     def add_gradient_update(self, gradient_update):
         """Store a gradient update, to be applied to the
-        matrix at the end of the epoch.
+        matrix at the end of the epoch. (Only for the 'matrix' mode.)
 
         Args:
             gradient_update (np.array): The change in the matrix,
@@ -434,7 +614,7 @@ class EdgeComparer():
         self.pending_updates += gradient_update
 
     def reset(self, discard_gradient_updates=False):
-        """Apply or discard gradient updates
+        """Apply or discard gradient updates (Only for the 'matrix' mode.)
 
         Args:
             discard_gradient_updates (bool, optional):
@@ -449,7 +629,7 @@ class EdgeComparer():
 
     def apply_gradient_updates(self):
         """At the end of an epoch, update the matrix
-        based on the cached updates
+        based on the cached updates (Only for the 'matrix' mode.)
         """
 
 
@@ -480,6 +660,7 @@ class EdgeComparer():
 
     def clear_gradient_updates(self):
         """Reset the pending updates without applying them
+        (Only for the 'matrix' mode.)
         """
 
         # Reset the cache

@@ -66,54 +66,54 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
         # Override any provided parameters
         if sales_x_i is not None:
-            self.graph.nodes[0].causal_embeddings.source_value = sales_x_i
+            self.graph.nodes[0].causal_source.value = sales_x_i
         else:
-            sales_x_i = self.graph.nodes[0].causal_embeddings.source_value
+            sales_x_i = self.graph.nodes[0].causal_source.value
         if sales_x_j is not None:
-            self.graph.nodes[0].causal_embeddings.dest_value = sales_x_j
+            self.graph.nodes[0].causal_dest.value = sales_x_j
         else:
-            sales_x_j = self.graph.nodes[0].causal_embeddings.dest_value
+            sales_x_j = self.graph.nodes[0].causal_dest.value
         if debtors_x_i is not None:
-            self.graph.nodes[1].causal_embeddings.source_value = debtors_x_i
+            self.graph.nodes[1].causal_source.value = debtors_x_i
         else:
-            debtors_x_i = self.graph.nodes[1].causal_embeddings.source_value
+            debtors_x_i = self.graph.nodes[1].causal_source.value
         if debtors_x_j is not None:
-            self.graph.nodes[1].causal_embeddings.dest_value = debtors_x_j
+            self.graph.nodes[1].causal_dest.value = debtors_x_j
         else:
-            debtors_x_j = self.graph.nodes[1].causal_embeddings.dest_value
+            debtors_x_j = self.graph.nodes[1].causal_dest.value
         if bank_x_i is not None:
-            self.graph.nodes[2].causal_embeddings.source_value = bank_x_i
+            self.graph.nodes[2].causal_source.value = bank_x_i
         else:
-            bank_x_i = self.graph.nodes[2].causal_embeddings.source_value
+            bank_x_i = self.graph.nodes[2].causal_source.value
         if bank_x_j is not None:
-            self.graph.nodes[2].causal_embeddings.dest_value = bank_x_j
+            self.graph.nodes[2].causal_dest.value = bank_x_j
         else:
-            bank_x_j = self.graph.nodes[2].causal_embeddings.dest_value
+            bank_x_j = self.graph.nodes[2].causal_dest.value
 
         if sales_y_i is not None:
-            self.graph.nodes[0].spontaneous_embeddings.source_value = sales_y_i
+            self.graph.nodes[0].spontaneous_source.value = sales_y_i
         else:
-            sales_y_i = self.graph.nodes[0].spontaneous_embeddings.source_value
+            sales_y_i = self.graph.nodes[0].spontaneous_source.value
         if sales_y_j is not None:
-            self.graph.nodes[0].spontaneous_embeddings.dest_value = sales_y_j
+            self.graph.nodes[0].spontaneous_dest.value = sales_y_j
         else:
-            sales_y_j = self.graph.nodes[0].spontaneous_embeddings.dest_value
+            sales_y_j = self.graph.nodes[0].spontaneous_dest.value
         if debtors_y_i is not None:
-            self.graph.nodes[1].spontaneous_embeddings.source_value = debtors_y_i
+            self.graph.nodes[1].spontaneous_source.value = debtors_y_i
         else:
-            debtors_y_i = self.graph.nodes[1].spontaneous_embeddings.source_value
+            debtors_y_i = self.graph.nodes[1].spontaneous_source.value
         if debtors_y_j is not None:
-            self.graph.nodes[1].spontaneous_embeddings.dest_value = debtors_y_j
+            self.graph.nodes[1].spontaneous_dest.value = debtors_y_j
         else:
-            debtors_y_j = self.graph.nodes[1].spontaneous_embeddings.dest_value
+            debtors_y_j = self.graph.nodes[1].spontaneous_dest.value
         if bank_y_i is not None:
-            self.graph.nodes[2].spontaneous_embeddings.source_value = bank_y_i
+            self.graph.nodes[2].spontaneous_source.value = bank_y_i
         else:
-            bank_y_i = self.graph.nodes[2].spontaneous_embeddings.source_value
+            bank_y_i = self.graph.nodes[2].spontaneous_source.value
         if bank_y_j is not None:
-            self.graph.nodes[2].spontaneous_embeddings.dest_value = bank_y_j
+            self.graph.nodes[2].spontaneous_dest.value = bank_y_j
         else:
-            bank_y_j = self.graph.nodes[2].spontaneous_embeddings.dest_value
+            bank_y_j = self.graph.nodes[2].spontaneous_dest.value
 
         if A_weight is not None:
             self.graph.weibull_weight_generator.matrix = A_weight
@@ -152,30 +152,30 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
         # Extract the calculated derivatives
         calc_deriv_sales_x_i = \
-            self.graph.nodes[0].causal_embeddings.source_pending_updates.copy()
+            self.graph.nodes[0].causal_source.pending_updates.copy()
         calc_deriv_sales_x_j = \
-            self.graph.nodes[0].causal_embeddings.dest_pending_updates.copy()
+            self.graph.nodes[0].causal_dest.pending_updates.copy()
         calc_deriv_debtors_x_i = \
-            self.graph.nodes[1].causal_embeddings.source_pending_updates.copy()
+            self.graph.nodes[1].causal_source.pending_updates.copy()
         calc_deriv_debtors_x_j = \
-            self.graph.nodes[1].causal_embeddings.dest_pending_updates.copy()
+            self.graph.nodes[1].causal_dest.pending_updates.copy()
         calc_deriv_bank_x_i = \
-            self.graph.nodes[2].causal_embeddings.source_pending_updates.copy()
+            self.graph.nodes[2].causal_source.pending_updates.copy()
         calc_deriv_bank_x_j = \
-            self.graph.nodes[2].causal_embeddings.dest_pending_updates.copy()
+            self.graph.nodes[2].causal_dest.pending_updates.copy()
 
         calc_deriv_sales_y_i = \
-            self.graph.nodes[0].spontaneous_embeddings.source_pending_updates.copy()
+            self.graph.nodes[0].spontaneous_source.pending_updates.copy()
         calc_deriv_sales_y_j = \
-            self.graph.nodes[0].spontaneous_embeddings.dest_pending_updates.copy()
+            self.graph.nodes[0].spontaneous_dest.pending_updates.copy()
         calc_deriv_debtors_y_i = \
-            self.graph.nodes[1].spontaneous_embeddings.source_pending_updates.copy()
+            self.graph.nodes[1].spontaneous_source.pending_updates.copy()
         calc_deriv_debtors_y_j = \
-            self.graph.nodes[1].spontaneous_embeddings.dest_pending_updates.copy()
+            self.graph.nodes[1].spontaneous_dest.pending_updates.copy()
         calc_deriv_bank_y_i = \
-            self.graph.nodes[2].spontaneous_embeddings.source_pending_updates.copy()
+            self.graph.nodes[2].spontaneous_source.pending_updates.copy()
         calc_deriv_bank_y_j = \
-            self.graph.nodes[2].spontaneous_embeddings.dest_pending_updates.copy()
+            self.graph.nodes[2].spontaneous_dest.pending_updates.copy()
 
         calc_deriv_A_weight = \
             self.graph.weibull_weight_generator.pending_updates.copy()
@@ -198,7 +198,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[0].causal_embeddings.source_value = sales_x_i + increment
+            self.graph.nodes[0].causal_source.value = sales_x_i + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -210,7 +210,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[0].causal_embeddings.source_value = sales_x_i
+            self.graph.nodes[0].causal_source.value = sales_x_i
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -228,7 +228,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[0].causal_embeddings.dest_value = sales_x_j + increment
+            self.graph.nodes[0].causal_dest.value = sales_x_j + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -240,7 +240,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[0].causal_embeddings.dest_value = sales_x_j
+            self.graph.nodes[0].causal_dest.value = sales_x_j
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -258,7 +258,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[1].causal_embeddings.source_value = debtors_x_i + increment
+            self.graph.nodes[1].causal_source.value = debtors_x_i + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -270,7 +270,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[1].causal_embeddings.source_value = debtors_x_i
+            self.graph.nodes[1].causal_source.value = debtors_x_i
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -288,7 +288,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[1].causal_embeddings.dest_value = debtors_x_j + increment
+            self.graph.nodes[1].causal_dest.value = debtors_x_j + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -300,7 +300,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[1].causal_embeddings.dest_value = debtors_x_j
+            self.graph.nodes[1].causal_dest.value = debtors_x_j
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -318,7 +318,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[2].causal_embeddings.source_value = bank_x_i + increment
+            self.graph.nodes[2].causal_source.value = bank_x_i + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -330,7 +330,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[2].causal_embeddings.source_value = bank_x_i
+            self.graph.nodes[2].causal_source.value = bank_x_i
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -348,7 +348,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[2].causal_embeddings.dest_value = bank_x_j + increment
+            self.graph.nodes[2].causal_dest.value = bank_x_j + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -360,7 +360,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[2].causal_embeddings.dest_value = bank_x_j
+            self.graph.nodes[2].causal_dest.value = bank_x_j
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -378,7 +378,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[0].spontaneous_embeddings.source_value = sales_y_i + increment
+            self.graph.nodes[0].spontaneous_source.value = sales_y_i + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -390,7 +390,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[0].spontaneous_embeddings.source_value = sales_y_i
+            self.graph.nodes[0].spontaneous_source.value = sales_y_i
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -408,7 +408,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[0].spontaneous_embeddings.dest_value = sales_y_j + increment
+            self.graph.nodes[0].spontaneous_dest.value = sales_y_j + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -420,7 +420,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[0].spontaneous_embeddings.dest_value = sales_y_j
+            self.graph.nodes[0].spontaneous_dest.value = sales_y_j
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -438,7 +438,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[1].spontaneous_embeddings.source_value = debtors_y_i + increment
+            self.graph.nodes[1].spontaneous_source.value = debtors_y_i + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -450,7 +450,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[1].spontaneous_embeddings.source_value = debtors_y_i
+            self.graph.nodes[1].spontaneous_source.value = debtors_y_i
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -468,7 +468,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[1].spontaneous_embeddings.dest_value = debtors_y_j + increment
+            self.graph.nodes[1].spontaneous_dest.value = debtors_y_j + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -480,7 +480,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[1].spontaneous_embeddings.dest_value = debtors_y_j
+            self.graph.nodes[1].spontaneous_dest.value = debtors_y_j
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -498,7 +498,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[2].spontaneous_embeddings.source_value = bank_y_i + increment
+            self.graph.nodes[2].spontaneous_source.value = bank_y_i + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -510,7 +510,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[2].spontaneous_embeddings.source_value = bank_y_i
+            self.graph.nodes[2].spontaneous_source.value = bank_y_i
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
@@ -528,7 +528,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
 
             # Adjust the parameter accordingly
-            self.graph.nodes[2].spontaneous_embeddings.dest_value = bank_y_j + increment
+            self.graph.nodes[2].spontaneous_dest.value = bank_y_j + increment
 
             # Update the graph excitement based on these parameters
             self.reset_graph(edges)
@@ -540,7 +540,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 ))
 
             # Reset the parameter change
-            self.graph.nodes[2].spontaneous_embeddings.dest_value = bank_y_j
+            self.graph.nodes[2].spontaneous_dest.value = bank_y_j
 
             # Estimate the partial derivative wrt this parameter
             estimated_deriv = (next_value-base_value)/epsilon
