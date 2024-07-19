@@ -400,7 +400,7 @@ def calc_delCausalDotproduct_delParam(
     Args:
         linear_value (float): The linear part of the function
         node_embedding (np.array): The node embedding
-        node_embedding (np.array): The edge embedding
+        edge_embedding (np.array): The edge embedding
 
     Returns:
         np.array: The partial derivative

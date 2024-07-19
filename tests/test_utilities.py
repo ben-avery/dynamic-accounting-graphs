@@ -936,6 +936,295 @@ class Test_delBaselineComparer_delParams(unittest.TestCase):
         )
 
 
+class Test_delBaselineDotproduct_delParam(unittest.TestCase):
+    """Test the derivative of the dot product which gives the
+    coefficients of the linear part of the baseline function
+    relative to its parameters
+    """
+    def derivative_helper(self, s_i, s_j, epsilon=10**(-8)):
+        # Calculate node dimension
+        node_dimension = len(s_i)
+
+        # Calculate the function value
+        base_value = s_i.T @ s_j
+
+        # Calculate the actual derivative for I
+        calc_deriv_I = \
+            utilities.calc_delBaselineDotproduct_delParam(s_j)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node I embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+            next_value = (s_i + increment).T @ s_j
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Node I, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_I[a],
+                    estimated_deriv,
+                    places=6
+                )
+
+        # Calculate the actual derivative for I
+        calc_deriv_J = \
+            utilities.calc_delBaselineDotproduct_delParam(s_i)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node J embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+            next_value = s_i.T @ (s_j + increment)
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Node J, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_J[a],
+                    estimated_deriv,
+                    places=6
+                )
+
+    def test_deriv(self):
+        # Choose the derivate
+        s_i = np.array(
+            [1.0, -0.4, 1.7, 0.2]
+        )
+        s_j = np.array(
+            [-1.0, -1.0, 1.0, 1.0]
+        )
+
+        # Test
+        self.derivative_helper(
+            s_i, s_j
+        )
+
+    def test_zeros(self):
+        # Choose the derivate
+        s_i = np.array(
+            [0.0, 0.0, 0.0, 0.0]
+        )
+        s_j = np.array(
+            [-1.0, -1.0, 1.0, 1.0]
+        )
+
+        # Test
+        self.derivative_helper(
+            s_i, s_j
+        )
+
+    def test_positive(self):
+        # Choose the derivate
+        s_i = np.array(
+            [1.0, 2.0, 3.0, 4.0]
+        )
+        s_j = np.array(
+            [-1.0, -2.0, -3.0, -4.0]
+        )
+
+        # Test
+        self.derivative_helper(
+            s_i, s_j
+        )
+
+    def test_negative(self):
+        # Choose the derivate
+        s_i = np.array(
+            [1.0, 2.0, 3.0, 4.0]
+        )
+        s_j = np.array(
+            [4.0, 3.0, 2.0, 1.0]
+        )
+
+        # Test
+        self.derivative_helper(
+            s_i, s_j
+        )
+
+
+class Test_delCausalDotproduct_delParam(unittest.TestCase):
+    """Test the derivative of the dot product which gives the
+    positive causal parameters of the Weibull distribution
+    relative to its parameters
+    """
+    def derivative_helper(self, r_i, r_j, e_k, e_l, epsilon=10**(-8)):
+        # Calculate node dimension
+        node_dimension = len(r_i)
+
+        # Calculate the function value
+        linear_value = (r_i * r_j).T @ (e_k * e_l)
+        base_value = utilities.log_exp_function(linear_value)
+
+        # Calculate the actual derivative for I
+        calc_deriv_I = \
+            utilities.calc_delCausalDotproduct_delParam(
+                linear_value,
+                node_embedding=r_j,
+                edge_embedding=e_k*e_l)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node I embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+            next_value = utilities.log_exp_function(
+                ((r_i+increment) * r_j).T @ (e_k * e_l))
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Node I, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_I[a],
+                    estimated_deriv
+                )
+
+        # Calculate the actual derivative for J
+        calc_deriv_J = \
+            utilities.calc_delCausalDotproduct_delParam(
+                linear_value,
+                node_embedding=r_i,
+                edge_embedding=e_k*e_l)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node J embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+            next_value = utilities.log_exp_function(
+                (r_i * (r_j+increment)).T @ (e_k * e_l))
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Node J, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_J[a],
+                    estimated_deriv
+                )
+
+        # Calculate the actual derivative for K
+        calc_deriv_K = \
+            utilities.calc_delCausalDotproduct_delParam(
+                linear_value,
+                node_embedding=e_l,
+                edge_embedding=r_i*r_j)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node K embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+            next_value = utilities.log_exp_function(
+                (r_i * r_j).T @ ((e_k+increment) * e_l))
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Node K, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_K[a],
+                    estimated_deriv
+                )
+
+        # Calculate the actual derivative for L
+        calc_deriv_L = \
+            utilities.calc_delCausalDotproduct_delParam(
+                linear_value,
+                node_embedding=e_k,
+                edge_embedding=r_i*r_j)
+
+        # Calculate the estimated derivative in each dimension
+        # in turn for node L embedding
+        for a in range(node_dimension):
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+            next_value = utilities.log_exp_function(
+                (r_i * r_j).T @ (e_k * (e_l+increment)))
+
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Node L, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_L[a],
+                    estimated_deriv
+                )
+
+    def test_deriv(self):
+        # Choose the derivate
+        r_i = np.array(
+            [1.0, -0.4, 1.7, 0.2]
+        )
+        r_j = np.array(
+            [-1.0, -1.0, 1.0, 1.0]
+        )
+        e_k = np.array(
+            [0.1, 0.2, 0.3, 0.4]
+        )
+        e_l = np.array(
+            [1.5, -0.1, 0.1, 0.7]
+        )
+
+        # Test
+        self.derivative_helper(
+            r_i, r_j, e_k, e_l
+        )
+
+    def test_zeros(self):
+        # Choose the derivate
+        r_i = np.array(
+            [0.0, 0.0, 0.0, 0.0]
+        )
+        r_j = np.array(
+            [0.0, 0.0, 0.0, 0.0]
+        )
+        e_k = np.array(
+            [0.0, 0.0, 0.0, 0.0]
+        )
+        e_l = np.array(
+            [0.0, 0.0, 0.0, 0.0]
+        )
+
+        # Test
+        self.derivative_helper(
+            r_i, r_j, e_k, e_l
+        )
+
+    def test_positive(self):
+        # Choose the derivate
+        r_i = np.array(
+            [1.0, 2.0, 3.0, 4.0]
+        )
+        r_j = np.array(
+            [1.1, 1.2, 1.3, 1.4]
+        )
+        e_k = np.array(
+            [0.5, 1.0, 0.5, 1.0]
+        )
+        e_l = np.array(
+            [1.0, 1.5, 1.75, 1.825]
+        )
+
+        # Test
+        self.derivative_helper(
+            r_i, r_j, e_k, e_l
+        )
+
+    def test_negative(self):
+        # Choose the derivate
+        r_i = np.array(
+            [-1.0, -2.0, -3.0, -4.0]
+        )
+        r_j = np.array(
+            [1.1, 1.2, 1.3, 1.4]
+        )
+        e_k = np.array(
+            [0.5, 1.0, 0.5, 1.0]
+        )
+        e_l = np.array(
+            [1.0, 1.5, 1.75, 1.825]
+        )
+
+        # Test
+        self.derivative_helper(
+            r_i, r_j, e_k, e_l
+        )
+
+
 class Test_delF(unittest.TestCase):
     """Test the derivative of the smooth, continuous
     function designed to make values positive

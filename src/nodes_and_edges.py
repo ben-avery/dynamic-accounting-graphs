@@ -376,7 +376,8 @@ class NodeEmbedding():
                 partial_deriv=-self.pending_updates,
                 prev_first_moment=self.prev_first_moment,
                 prev_second_moment=self.prev_second_moment,
-                prev_parameters=self.value
+                prev_parameters=self.value,
+                step_size=self.learning_rate
             )
 
         # Apply regularisation penalty
@@ -646,7 +647,8 @@ class EdgeComparer():
                 partial_deriv=-self.pending_updates,
                 prev_first_moment=self.prev_first_moment,
                 prev_second_moment=self.prev_second_moment,
-                prev_parameters=self.matrix
+                prev_parameters=self.matrix,
+                step_size=self.learning_rate
             )
 
 

@@ -114,7 +114,7 @@ class DynamicAccountingGraph():
                 learning_rate=self.learning_rate,
                 regularisation_rate=self.regularisation_rate,
                 mode=comparer_mode,
-                min_at=0.1
+                min_at=0.5
             )
             self.weibull_beta_generator = EdgeComparer(
                 dimension=self.edge_embedder.output_dimension,
@@ -145,11 +145,25 @@ class DynamicAccountingGraph():
                 mode=comparer_mode, positive_output=False
             )
         elif self.mode == 'dot':
-            self.causal_comparer = EdgeComparer(
+            self.causal_comparer_weight = EdgeComparer(
                 dimension=self.node_dimension,
                 learning_rate=self.learning_rate,
                 regularisation_rate=self.regularisation_rate,
                 mode=comparer_mode, positive_output=True
+            )
+            self.causal_comparer_alpha = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=True,
+                min_at=0.5
+            )
+            self.causal_comparer_beta = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=True,
+                min_at=1.0
             )
 
             self.spontaneous_comparer = EdgeComparer(
@@ -271,7 +285,7 @@ class DynamicAccountingGraph():
                 if self.mode == 'matrix':
                     r_j = self.nodes[excitor_j].causal_dest.value
                 elif self.mode == 'dot':
-                    r_j = self.nodes[excitor_i].causal_excitor_dest_weight.value
+                    r_j = self.nodes[excitor_j].causal_excitor_dest_weight.value
 
                 # Get the edge embedding
                 excitor_edge_embedding = self.edge_embedder.embed_edge(r_i, r_j)
@@ -310,13 +324,13 @@ class DynamicAccountingGraph():
                             lin_val_weight = self.weibull_weight_generator.last_linear_value
                         elif self.mode == 'dot':
                             weibull_weight = \
-                                self.causal_comparer.compare_embeddings(
+                                self.causal_comparer_weight.compare_embeddings(
                                     excitor_edge_embedding, excitee_edge_embedding
                                 )
 
                             # Extract the pre-scaled value from the calculation, for use
                             # in the gradient ascent algorithm
-                            lin_val_weight = self.causal_comparer.last_linear_value
+                            lin_val_weight = self.causal_comparer_weight.last_linear_value
 
                         # If there is sufficient probability, add as a possible excitee
                         if weibull_weight > self.excitement_threshold:
@@ -339,33 +353,49 @@ class DynamicAccountingGraph():
                             elif self.mode == 'dot':
                                 # Alpha
                                 # Get the node embeddings
-                                e_k = self.nodes[excitee_k].causal_excitee_source_alpha.value
-                                e_l = self.nodes[excitee_l].causal_excitee_dest_alpha.value
+                                r_i_alpha = self.nodes[excitor_i].causal_excitor_source_alpha.value
+                                r_j_alpha = self.nodes[excitor_j].causal_excitor_dest_alpha.value
+                                e_k_alpha = self.nodes[excitee_k].causal_excitee_source_alpha.value
+                                e_l_alpha = self.nodes[excitee_l].causal_excitee_dest_alpha.value
+
+                                # Get the edge embeddings
+                                excitor_edge_embedding_alpha = \
+                                    self.edge_embedder.embed_edge(r_i_alpha, r_j_alpha)
+                                excitee_edge_embedding_alpha = \
+                                    self.edge_embedder.embed_edge(e_k_alpha, e_l_alpha)
 
                                 # Compare the embeddings
                                 weibull_alpha = \
-                                    self.causal_comparer.compare_embeddings(
-                                        excitor_edge_embedding, excitee_edge_embedding
+                                    self.causal_comparer_alpha.compare_embeddings(
+                                        excitor_edge_embedding_alpha, excitee_edge_embedding_alpha
                                     )
 
                                 # Extract the pre-scaled value from the calculation, for use
                                 # in the gradient ascent algorithm
-                                lin_val_alpha = self.causal_comparer.last_linear_value
+                                lin_val_alpha = self.causal_comparer_alpha.last_linear_value
 
                                 # Beta
                                 # Get the node embeddings
-                                e_k = self.nodes[excitee_k].causal_excitee_source_beta.value
-                                e_l = self.nodes[excitee_l].causal_excitee_dest_beta.value
+                                r_i_beta = self.nodes[excitor_i].causal_excitor_source_beta.value
+                                r_j_beta = self.nodes[excitor_j].causal_excitor_dest_beta.value
+                                e_k_beta = self.nodes[excitee_k].causal_excitee_source_beta.value
+                                e_l_beta = self.nodes[excitee_l].causal_excitee_dest_beta.value
+
+                                # Get the edge embeddings
+                                excitor_edge_embedding_beta = \
+                                    self.edge_embedder.embed_edge(r_i_beta, r_j_beta)
+                                excitee_edge_embedding_beta = \
+                                    self.edge_embedder.embed_edge(e_k_beta, e_l_beta)
 
                                 # Compare the embeddings
                                 weibull_beta = \
-                                    self.causal_comparer.compare_embeddings(
-                                        excitor_edge_embedding, excitee_edge_embedding
+                                    self.causal_comparer_beta.compare_embeddings(
+                                        excitor_edge_embedding_beta, excitee_edge_embedding_beta
                                     )
 
                                 # Extract the pre-scaled value from the calculation, for use
                                 # in the gradient ascent algorithm
-                                lin_val_beta = self.causal_comparer.last_linear_value
+                                lin_val_beta = self.causal_comparer_beta.last_linear_value
 
                             # Store the potential pairs, and the requisite parameters
                             self.possible_excitees[
@@ -1304,7 +1334,7 @@ class DynamicAccountingGraph():
 
         # Calculate partial derivatives that are
         # independent of the excitor edge.
-        delP_delIntensity= \
+        delP_delIntensity = \
             calc_delP_delIntensity(
                 self.gradient_log['count'],
                 self.gradient_log['sum_Intensity'])
@@ -1603,7 +1633,7 @@ class DynamicAccountingGraph():
             delBeta_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
-                    node_embedding=e_k_beta,
+                    node_embedding=e_l_beta,
                     edge_embedding=excitor_ij_beta
                 )
             delWeight_delK = \
