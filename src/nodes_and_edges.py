@@ -206,43 +206,71 @@ class Node():
         """
         self.pending_balance_changes += change
 
-    def reset(self, discard_gradient_updates=False):
+    def reset(self, discard_gradient_updates=False,
+              spontaneous_on=True):
         """Reset balance and apply or discard gradient updates
 
         Args:
             discard_gradient_updates (bool, optional):
-            Choose whether to discard or apply the pending gradient
-            updates. Defaults to False.
+                Choose whether to discard or apply the pending gradient
+                updates. Defaults to False.
+            spontaneous_on (bool, optional): Whether the spontaneous part
+                of the model is enabled. Recommended to have off for the
+                early part of the model learning, to allow the causal part
+                of the model to dominate.
+                Defaults to True.
         """
 
         if discard_gradient_updates:
             self.clear_gradient_updates()
         else:
-            self.apply_gradient_updates()
+            self.apply_gradient_updates(
+                spontaneous_on=spontaneous_on
+            )
 
         self.reset_balance()
 
-    def apply_gradient_updates(self):
+    def apply_gradient_updates(self, spontaneous_on=True):
         """At the end of an epoch, update the node embeddings
         based on the cached updates
+
+        Args:
+            spontaneous_on (bool, optional): Whether the spontaneous part
+                of the model is enabled. Recommended to have off for the
+                early part of the model learning, to allow the causal part
+                of the model to dominate.
+                Defaults to True.
         """
 
         # Update the embeddings
         if self.mode == 'matrix':
-            self.spontaneous_source.apply_gradient_updates()
-            self.spontaneous_dest.apply_gradient_updates()
+            if spontaneous_on:
+                self.spontaneous_source.apply_gradient_updates()
+                self.spontaneous_dest.apply_gradient_updates()
+            else:
+                self.spontaneous_source.clear_gradient_updates()
+                self.spontaneous_dest.clear_gradient_updates()
 
             self.causal_source.apply_gradient_updates()
             self.causal_dest.apply_gradient_updates()
 
         elif self.mode == 'dot':
-            self.spontaneous_source_0.apply_gradient_updates()
-            self.spontaneous_source_1.apply_gradient_updates()
-            self.spontaneous_source_2.apply_gradient_updates()
+            if spontaneous_on:
+                self.spontaneous_source_0.clear_gradient_updates()
+                self.spontaneous_source_1.clear_gradient_updates()
+                self.spontaneous_source_2.clear_gradient_updates()
 
-            self.spontaneous_dest_0.apply_gradient_updates()
-            self.spontaneous_dest_1.apply_gradient_updates()
-            self.spontaneous_dest_2.apply_gradient_updates()
+                self.spontaneous_dest_0.clear_gradient_updates()
+                self.spontaneous_dest_1.clear_gradient_updates()
+                self.spontaneous_dest_2.clear_gradient_updates()
+            else:
+                self.spontaneous_source_0.apply_gradient_updates()
+                self.spontaneous_source_1.apply_gradient_updates()
+                self.spontaneous_source_2.apply_gradient_updates()
+
+                self.spontaneous_dest_0.apply_gradient_updates()
+                self.spontaneous_dest_1.apply_gradient_updates()
+                self.spontaneous_dest_2.apply_gradient_updates()
 
             self.causal_excitor_source_alpha.apply_gradient_updates()
             self.causal_excitor_source_beta.apply_gradient_updates()
@@ -366,14 +394,15 @@ class NodeEmbedding():
         # Increase the number of learning steps
         self.learning_steps += 1
 
-        # Regularisation penalty
+        # Extract gradient with regularisation penalty
         regularisation = -2*self.regularisation_rate*self.value
+        gradient = -self.pending_updates - regularisation
 
         # Adam update
         self.value, self.prev_first_moment, self.prev_second_moment = \
             adam_update(
                 time=self.learning_steps,
-                partial_deriv=-self.pending_updates,
+                partial_deriv=gradient,
                 prev_first_moment=self.prev_first_moment,
                 prev_second_moment=self.prev_second_moment,
                 prev_parameters=self.value,
@@ -637,14 +666,15 @@ class EdgeComparer():
         # Increase the number of learning steps
         self.learning_steps += 1
 
-        # Regularisation penalty
+        # Extract gradient with regularisation penalty
         regularisation = -2*self.regularisation_rate*self.matrix
+        gradient = -self.pending_updates - regularisation
 
         # Adam update
         self.matrix, self.prev_first_moment, self.prev_second_moment = \
             adam_update(
                 time=self.learning_steps,
-                partial_deriv=-self.pending_updates,
+                partial_deriv=gradient,
                 prev_first_moment=self.prev_first_moment,
                 prev_second_moment=self.prev_second_moment,
                 prev_parameters=self.matrix,
