@@ -378,6 +378,38 @@ def calc_delBaselineComparer_delMatrix(y_k, y_l):
         y_k.reshape((y_k.size, 1)) * y_l
 
 
+def calc_delBaselineDotproduct_delParam(parameter):
+    """A partial derivative of the baseline linear coefficients
+    by the relevant embeddings
+
+    Args:
+        parameter (np.array): The node embedding
+
+    Returns:
+        np.array: The partial derivative
+    """
+
+    return parameter
+
+
+def calc_delCausalDotproduct_delParam(
+        linear_value, node_embedding, edge_embedding):
+    """A partial derivative of the causal parameters
+    by the relevant embeddings
+
+    Args:
+        linear_value (float): The linear part of the function
+        node_embedding (np.array): The node embedding
+        edge_embedding (np.array): The edge embedding
+
+    Returns:
+        np.array: The partial derivative
+    """
+
+    return \
+        log_exp_deriv_multiplier(linear_value) * (node_embedding*edge_embedding)
+
+
 def log_exp_function(linear_value):
     """A helper function which gives the smooth, continuous
     function that ensures parameters are positive.

@@ -18,6 +18,8 @@ from utilities import (
     calc_delBaselineComparer_delK,
     calc_delBaselineComparer_delL,
     calc_delBaselineComparer_delMatrix,
+    calc_delCausalDotproduct_delParam,
+    calc_delBaselineDotproduct_delParam,
     log_exp_function
 )
 
@@ -26,11 +28,7 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 edge_embedder_mode='concatenate',
-                 weibull_weight_generator_mode='matrix',
-                 weibull_alpha_generator_mode='matrix',
-                 weibull_beta_generator_mode='matrix',
-                 learning_rate=0.001, regularisation_rate=0.01,
+                 mode='dot', learning_rate=0.001, regularisation_rate=0.01,
                  debug_mode=False, debug_edges_to_monitor=[],
                  debug_monitor_excitement=False):
         """Initialise the class
@@ -39,24 +37,9 @@ class DynamicAccountingGraph():
             accounts (list): A list of Account object (with attributes 
                 for name, balance, number and mapping)
             node_dimension (int): The dimension for the node embeddings
-            edge_embedder_mode (str, optional): The method of combining 
-                node embeddings to get edge embeddings. Defaults to
-                'concatenate'.
-            weibull_weight_generator_mode (str, optional): The method of
-                combining two edge embeddings to get a real-valued
-                parameter for the weight of a discrete Weibull distribution.
+            mode (str, optional): The method for generating parameter
+                values from embeddings. Can either be 'matrix' or 'dot'.
                 Defaults to 'matrix'.
-            weibull_alpha_generator_mode (str, optional): The method of
-                combining two edge embeddings to get a real-valued
-                parameter for the alpha parameter of a discrete Weibull
-                distribution (which controls the likely time between
-                two edges exciting each other). Defaults to 'matrix'.
-            weibull_beta_generator_mode (str, optional): The method of
-                combining two edge embeddings to get a real-valued
-                parameter for the beta parameter of a discrete Weibull
-                distribution (which controls the spread of likely times
-                between two edges exciting each other). Defaults
-                to 'matrix'.
             learning_rate (float, optional): The learning rate for the
                 gradient ascent algorithm. Defaults to 0.001.
             regularisation_rate (float, optional): The weight towards the
@@ -70,6 +53,25 @@ class DynamicAccountingGraph():
         self.learning_rate = learning_rate
         self.regularisation_rate = regularisation_rate
 
+        # Get the modes
+        self.mode = mode
+        if self.mode == 'matrix':
+            node_mode = 'matrix'
+            embedder_mode = 'concatenate'
+            comparer_mode = 'matrix'
+
+            self.calculate_derivatives_mode = self.calculate_derivatives_matrix
+        elif self.mode == 'dot':
+            node_mode = 'dot'
+            embedder_mode = 'hadamard'
+            comparer_mode = 'dot'
+
+            self.calculate_derivatives_mode = self.calculate_derivatives_dot
+        else:
+            raise ValueError(
+                f'Graph mode {self.mode} is not recognised'
+            )
+
         # Create the nodes with random embeddings
         self.nodes = []
         self.node_dimension = node_dimension
@@ -80,6 +82,7 @@ class DynamicAccountingGraph():
                 dimension=node_dimension,
                 learning_rate=self.learning_rate,
                 regularisation_rate=self.regularisation_rate,
+                mode=node_mode,
                 meta_data={
                     'account_number': account.number,
                     'mapping': account.mapping
@@ -94,52 +97,81 @@ class DynamicAccountingGraph():
         # edge between the nodes
         self.edge_embedder = EdgeEmbedder(
             input_dimension=node_dimension,
-            mode=edge_embedder_mode
+            mode=embedder_mode
         )
 
-        # Create generators for the Weibull distribution
-        # parameters
-        self.weibull_weight_generator = EdgeComparer(
-            dimension=self.edge_embedder.output_dimension,
-            learning_rate=self.learning_rate,
-            regularisation_rate=self.regularisation_rate,
-            mode=weibull_weight_generator_mode
-        )
-        self.weibull_alpha_generator = EdgeComparer(
-            dimension=self.edge_embedder.output_dimension,
-            learning_rate=self.learning_rate,
-            regularisation_rate=self.regularisation_rate,
-            mode=weibull_alpha_generator_mode,
-            min_at=0.1
-        )
-        self.weibull_beta_generator = EdgeComparer(
-            dimension=self.edge_embedder.output_dimension,
-            learning_rate=self.learning_rate,
-            regularisation_rate=self.regularisation_rate,
-            mode=weibull_beta_generator_mode,
-            min_at=1
-        )
+        if self.mode == 'matrix':
+            # Create generators for the Weibull distribution
+            # parameters
+            self.weibull_weight_generator = EdgeComparer(
+                dimension=self.edge_embedder.output_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode
+            )
+            self.weibull_alpha_generator = EdgeComparer(
+                dimension=self.edge_embedder.output_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode,
+                min_at=0.5
+            )
+            self.weibull_beta_generator = EdgeComparer(
+                dimension=self.edge_embedder.output_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode,
+                min_at=1
+            )
 
-        # Create generators for linear parameters of
-        # baseline intensity
-        self.base_param_0 = EdgeComparer(
-            dimension=self.node_dimension,
-            learning_rate=self.learning_rate,
-            regularisation_rate=self.regularisation_rate,
-            mode='matrix', positive_output=False
-        )
-        self.base_param_1 = EdgeComparer(
-            dimension=self.node_dimension,
-            learning_rate=self.learning_rate,
-            regularisation_rate=self.regularisation_rate,
-            mode='matrix', positive_output=False
-        )
-        self.base_param_2 = EdgeComparer(
-            dimension=self.node_dimension,
-            learning_rate=self.learning_rate,
-            regularisation_rate=self.regularisation_rate,
-            mode='matrix', positive_output=False
-        )
+            # Create generators for linear parameters of
+            # baseline intensity
+            self.base_param_0 = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=False
+            )
+            self.base_param_1 = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=False
+            )
+            self.base_param_2 = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=False
+            )
+        elif self.mode == 'dot':
+            self.causal_comparer_weight = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=True
+            )
+            self.causal_comparer_alpha = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=True,
+                min_at=0.5
+            )
+            self.causal_comparer_beta = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=True,
+                min_at=1.0
+            )
+
+            self.spontaneous_comparer = EdgeComparer(
+                dimension=self.node_dimension,
+                learning_rate=self.learning_rate,
+                regularisation_rate=self.regularisation_rate,
+                mode=comparer_mode, positive_output=False
+            )
 
         # Create attributes to record all edges and any
         # new edges for this day
@@ -243,63 +275,133 @@ class DynamicAccountingGraph():
 
         for excitor_i in range(self.count_nodes):
             # Get the node embedding
-            excitor_x_i = self.nodes[excitor_i].causal_embeddings.source_value
+            if self.mode == 'matrix':
+                r_i = self.nodes[excitor_i].causal_source.value
+            elif self.mode == 'dot':
+                r_i = self.nodes[excitor_i].causal_excitor_source_weight.value
 
             for excitor_j in range(self.count_nodes):
                 # Get the node embedding
-                excitor_x_j = self.nodes[excitor_j].causal_embeddings.dest_value
+                if self.mode == 'matrix':
+                    r_j = self.nodes[excitor_j].causal_dest.value
+                elif self.mode == 'dot':
+                    r_j = self.nodes[excitor_j].causal_excitor_dest_weight.value
 
                 # Get the edge embedding
-                excitor_edge_embedding = self.edge_embedder.embed_edge(excitor_x_i, excitor_x_j)
+                excitor_edge_embedding = self.edge_embedder.embed_edge(r_i, r_j)
 
                 # Create an entry for this excitor
                 self.possible_excitees[(excitor_i, excitor_j)] = dict()
 
-                for excitee_i in range(self.count_nodes):
+                for excitee_k in range(self.count_nodes):
                     # Get the node embedding
-                    excitee_x_i = self.nodes[excitee_i].causal_embeddings.source_value
+                    if self.mode == 'matrix':
+                        e_k = self.nodes[excitee_k].causal_source.value
+                    elif self.mode == 'dot':
+                        e_k = self.nodes[excitee_k].causal_excitee_source_weight.value
 
-                    for excitee_j in range(self.count_nodes):
+                    for excitee_l in range(self.count_nodes):
                         # Get the node embedding
-                        excitee_x_j = self.nodes[excitee_j].causal_embeddings.dest_value
+                        if self.mode == 'matrix':
+                            e_l = self.nodes[excitee_l].causal_dest.value
+                        elif self.mode == 'dot':
+                            e_l = self.nodes[excitee_l].causal_excitee_dest_weight.value
 
                         # Get the edge embedding
                         excitee_edge_embedding = \
-                            self.edge_embedder.embed_edge(excitee_x_i, excitee_x_j)
+                            self.edge_embedder.embed_edge(e_k, e_l)
 
                         # Get the Weibull weight (the total probability of the excitor
                         # edge exciting the excitee edge)
-                        weibull_weight = \
-                            self.weibull_weight_generator.compare_embeddings(
-                                excitor_edge_embedding, excitee_edge_embedding
-                            )
-                        # Extract the pre-scaled value from the calculation, for use
-                        # in the gradient ascent algorithm
-                        lin_val_weight = self.weibull_weight_generator.last_linear_value
+                        if self.mode == 'matrix':
+                            weibull_weight = \
+                                self.weibull_weight_generator.compare_embeddings(
+                                    excitor_edge_embedding, excitee_edge_embedding
+                                )
+
+                            # Extract the pre-scaled value from the calculation, for use
+                            # in the gradient ascent algorithm
+                            lin_val_weight = self.weibull_weight_generator.last_linear_value
+                        elif self.mode == 'dot':
+                            weibull_weight = \
+                                self.causal_comparer_weight.compare_embeddings(
+                                    excitor_edge_embedding, excitee_edge_embedding
+                                )
+
+                            # Extract the pre-scaled value from the calculation, for use
+                            # in the gradient ascent algorithm
+                            lin_val_weight = self.causal_comparer_weight.last_linear_value
 
                         # If there is sufficient probability, add as a possible excitee
                         if weibull_weight > self.excitement_threshold:
                             # Calculate the Weibull parameters (characterising the average
                             # time to excitation, and the spread of likely times to
                             # excitation)
-                            weibull_alpha = \
-                                self.weibull_alpha_generator.compare_embeddings(
-                                    excitor_edge_embedding, excitee_edge_embedding
-                                )
-                            weibull_beta = \
-                                self.weibull_beta_generator.compare_embeddings(
-                                    excitor_edge_embedding, excitee_edge_embedding
-                                )
-                            # Extract the pre-scaled value from the calculation, for use
-                            # in the gradient ascent algorithm
-                            lin_val_alpha = self.weibull_alpha_generator.last_linear_value
-                            lin_val_beta = self.weibull_beta_generator.last_linear_value
+                            if self.mode == 'matrix':
+                                weibull_alpha = \
+                                    self.weibull_alpha_generator.compare_embeddings(
+                                        excitor_edge_embedding, excitee_edge_embedding
+                                    )
+                                weibull_beta = \
+                                    self.weibull_beta_generator.compare_embeddings(
+                                        excitor_edge_embedding, excitee_edge_embedding
+                                    )
+                                # Extract the pre-scaled value from the calculation, for use
+                                # in the gradient ascent algorithm
+                                lin_val_alpha = self.weibull_alpha_generator.last_linear_value
+                                lin_val_beta = self.weibull_beta_generator.last_linear_value
+                            elif self.mode == 'dot':
+                                # Alpha
+                                # Get the node embeddings
+                                r_i_alpha = self.nodes[excitor_i].causal_excitor_source_alpha.value
+                                r_j_alpha = self.nodes[excitor_j].causal_excitor_dest_alpha.value
+                                e_k_alpha = self.nodes[excitee_k].causal_excitee_source_alpha.value
+                                e_l_alpha = self.nodes[excitee_l].causal_excitee_dest_alpha.value
+
+                                # Get the edge embeddings
+                                excitor_edge_embedding_alpha = \
+                                    self.edge_embedder.embed_edge(r_i_alpha, r_j_alpha)
+                                excitee_edge_embedding_alpha = \
+                                    self.edge_embedder.embed_edge(e_k_alpha, e_l_alpha)
+
+                                # Compare the embeddings
+                                weibull_alpha = \
+                                    self.causal_comparer_alpha.compare_embeddings(
+                                        excitor_edge_embedding_alpha, excitee_edge_embedding_alpha
+                                    )
+
+                                # Extract the pre-scaled value from the calculation, for use
+                                # in the gradient ascent algorithm
+                                lin_val_alpha = self.causal_comparer_alpha.last_linear_value
+
+                                # Beta
+                                # Get the node embeddings
+                                r_i_beta = self.nodes[excitor_i].causal_excitor_source_beta.value
+                                r_j_beta = self.nodes[excitor_j].causal_excitor_dest_beta.value
+                                e_k_beta = self.nodes[excitee_k].causal_excitee_source_beta.value
+                                e_l_beta = self.nodes[excitee_l].causal_excitee_dest_beta.value
+
+                                # Get the edge embeddings
+                                excitor_edge_embedding_beta = \
+                                    self.edge_embedder.embed_edge(r_i_beta, r_j_beta)
+                                excitee_edge_embedding_beta = \
+                                    self.edge_embedder.embed_edge(e_k_beta, e_l_beta)
+
+                                # Compare the embeddings
+                                weibull_beta = \
+                                    self.causal_comparer_beta.compare_embeddings(
+                                        excitor_edge_embedding_beta, excitee_edge_embedding_beta
+                                    )
+
+                                # Extract the pre-scaled value from the calculation, for use
+                                # in the gradient ascent algorithm
+                                lin_val_beta = self.causal_comparer_beta.last_linear_value
 
                             # Store the potential pairs, and the requisite parameters
                             self.possible_excitees[
                                 (excitor_i, excitor_j)
                                 ][
-                                    (excitee_i, excitee_j)
+                                    (excitee_k, excitee_l)
                                     ] = \
                                         ((weibull_weight, weibull_alpha, weibull_beta),
                                          (lin_val_weight, lin_val_alpha, lin_val_beta))
@@ -425,23 +527,45 @@ class DynamicAccountingGraph():
         self.gradient_log['source_balance'] = balance_i
         self.gradient_log['dest_balance'] = balance_j
 
-        # Get the embeddings
-        y_i = self.nodes[i].spontaneous_embeddings.source_value
-        y_j = self.nodes[j].spontaneous_embeddings.dest_value
-
         # Calculate the linear output
-        linear_output_0 = \
-            self.base_param_0.compare_embeddings(
-                y_i, y_j
-            )
-        linear_output_1 = \
-            self.base_param_1.compare_embeddings(
-                y_i, y_j
-            )
-        linear_output_2 = \
-            self.base_param_2.compare_embeddings(
-                y_i, y_j
-            )
+        if self.mode == 'matrix':
+            # Get the embeddings
+            s_i = self.nodes[i].spontaneous_source.value
+            s_j = self.nodes[j].spontaneous_dest.value
+
+            linear_output_0 = \
+                self.base_param_0.compare_embeddings(
+                    s_i, s_j
+                )
+            linear_output_1 = \
+                self.base_param_1.compare_embeddings(
+                    s_i, s_j
+                )
+            linear_output_2 = \
+                self.base_param_2.compare_embeddings(
+                    s_i, s_j
+                )
+        elif self.mode == 'dot':
+            # Get the embeddings
+            s_0_i = self.nodes[i].spontaneous_source_0.value
+            s_0_j = self.nodes[j].spontaneous_dest_0.value
+            s_1_i = self.nodes[i].spontaneous_source_1.value
+            s_1_j = self.nodes[j].spontaneous_dest_1.value
+            s_2_i = self.nodes[i].spontaneous_source_2.value
+            s_2_j = self.nodes[j].spontaneous_dest_2.value
+
+            linear_output_0 = \
+                self.spontaneous_comparer.compare_embeddings(
+                    s_0_i, s_0_j
+                )
+            linear_output_1 = \
+                self.spontaneous_comparer.compare_embeddings(
+                    s_1_i, s_1_j
+                )
+            linear_output_2 = \
+                self.spontaneous_comparer.compare_embeddings(
+                    s_2_i, s_2_j
+                )
 
         full_linear_output = \
             linear_output_0 + \
@@ -453,19 +577,19 @@ class DynamicAccountingGraph():
             self.add_to_debug_log(
                 f'Linear output 0 (for edge {i},{j})',
                 linear_output_0,
-                edges=[(i,j)])
+                edges=[(i, j)])
             self.add_to_debug_log(
                 f'Linear output 1 (for edge {i},{j})',
                 linear_output_1,
-                edges=[(i,j)])
+                edges=[(i, j)])
             self.add_to_debug_log(
                 f'Linear output 2 (for edge {i},{j})',
                 linear_output_2,
-                edges=[(i,j)])
+                edges=[(i, j)])
             self.add_to_debug_log(
                 f'Full linear output (for edge {i},{j})',
                 full_linear_output,
-                edges=[(i,j)])
+                edges=[(i, j)])
 
         # Store the linear output for the gradient algorithm
         self.gradient_log['baseline_linear_value'] = \
@@ -493,11 +617,11 @@ class DynamicAccountingGraph():
             self.add_to_debug_log(
                 f'Baseline intensity of edge {i}, {j}',
                 intensity,
-                edges=[(i,j)])
+                edges=[(i, j)])
 
         # For each 'excite' that exists for this edge,
         # increase the intensity accordingly
-        nodes = (i,j)
+        nodes = (i, j)
         if nodes in self.current_excitees:
             # Increase the intensity by the weighted
             # probability mass function of the generated,
@@ -621,10 +745,10 @@ class DynamicAccountingGraph():
         # Record the probability for gradient ascent
         self.gradient_log['P'] = probability
 
-        # Run the gradient ascent algorithm to create
+        # Calculate partial derivatives to create
         # pending parameter updates (to be applied when
         # the entire period has been added to the graph)
-        self.gradient_ascent()
+        self.calculate_derivatives()
 
         return probability
 
@@ -683,21 +807,16 @@ class DynamicAccountingGraph():
 
         return total_log_probability
 
-    def gradient_ascent(self):
-        """Run the gradient ascent algorithm using
-        cached calculations of the probability of
-        today's edges occuring in the frequency which
-        they did.
-        Gradient ascent will maximise this probability,
-        thereby giving a maximum likelihood estimation
-        for the parameters.
-        The cached calculations will be for the probability
-        of a certain edge occuring a certain number of times.
-        Therefore, the excitee edge is fixed, but there
-        are potentially a number of different excitor edges.
-        Therefore, node embeddings for the nodes in any of
-        these involved edges can be learned. The matrices
-        in the Comparer objects can also be learned.
+    def calculate_derivatives(self):
+        """Calculate an element of the derivatives of the log likelihood
+        of the edges occuring in the frequencies that they did on each
+        day in the period (with the current values of all the parameters),
+        with respect to each parameter
+        """
+        return self.calculate_derivatives_mode()
+
+    def calculate_derivatives_matrix(self):
+        """The calculate_derivatives function for the 'matrix' mode
         """
 
         # Calculate the inverse of the probability
@@ -742,12 +861,12 @@ class DynamicAccountingGraph():
 
         # Get the node embeddings
         node_k = self.nodes[k]
-        x_k = node_k.causal_embeddings.source_value
+        e_k = node_k.causal_source.value
         node_l = self.nodes[l]
-        x_l = node_l.causal_embeddings.dest_value
+        e_l = node_l.causal_dest.value
 
         # Get the edge embedding
-        e_kl = self.edge_embedder.embed_edge(x_k, x_l)
+        excitee_kl = self.edge_embedder.embed_edge(e_k, e_l)
 
         # Calculate the spontaneous intensity gradient updates
         # - Calculate the partial derivative
@@ -774,45 +893,45 @@ class DynamicAccountingGraph():
                 dest_balance
             )
 
-        y_k = node_k.spontaneous_embeddings.source_value
-        y_l = node_l.spontaneous_embeddings.dest_value
+        s_k = node_k.spontaneous_source.value
+        s_l = node_l.spontaneous_dest.value
         delZero_delK = \
             calc_delBaselineComparer_delK(
                 self.base_param_0.matrix,
-                y_l
+                s_l
             )
         delZero_delL = \
             calc_delBaselineComparer_delL(
                 self.base_param_0.matrix,
-                y_k
+                s_k
             )
         delOne_delK = \
             calc_delBaselineComparer_delK(
                 self.base_param_1.matrix,
-                y_l
+                s_l
             )
         delOne_delL = \
             calc_delBaselineComparer_delL(
                 self.base_param_1.matrix,
-                y_k
+                s_k
             )
         delTwo_delK = \
             calc_delBaselineComparer_delK(
                 self.base_param_2.matrix,
-                y_l
+                s_l
             )
         delTwo_delL = \
             calc_delBaselineComparer_delL(
                 self.base_param_2.matrix,
-                y_k
+                s_k
             )
         delBaselineComparer_delMatrix = \
             calc_delBaselineComparer_delMatrix(
-                y_k, y_l
+                s_k, s_l
             )
 
         # - Apply the updates
-        node_k.add_spontaneous_gradient_update(
+        node_k.spontaneous_source.add_gradient_update(
             inverse_probability * delP_delIntensity * (
                 delBaselineIntensity_delZero *
                 delZero_delK +
@@ -820,11 +939,10 @@ class DynamicAccountingGraph():
                 delOne_delK +
                 delBaselineIntensity_delTwo *
                 delTwo_delK
-            ),
-            node_type='source'
+            )
         )
 
-        node_l.add_spontaneous_gradient_update(
+        node_l.spontaneous_dest.add_gradient_update(
             inverse_probability * delP_delIntensity * (
                 delBaselineIntensity_delZero *
                 delZero_delL +
@@ -832,8 +950,7 @@ class DynamicAccountingGraph():
                 delOne_delL +
                 delBaselineIntensity_delTwo *
                 delTwo_delL
-            ),
-            node_type='dest'
+            )
         )
 
         self.base_param_0.add_gradient_update(
@@ -942,12 +1059,12 @@ class DynamicAccountingGraph():
             # Get the node embeddings for the nodes in
             # the excitor edge
             node_i = self.nodes[i]
-            x_i = node_i.causal_embeddings.source_value
+            r_i = node_i.causal_source.value
             node_j = self.nodes[j]
-            x_j = node_j.causal_embeddings.dest_value
+            r_j = node_j.causal_dest.value
 
             # Get the edge embedding
-            e_ij = self.edge_embedder.embed_edge(x_i, x_j)
+            excitor_ij = self.edge_embedder.embed_edge(r_i, r_j)
 
             # Calculate the partial derivates that depend
             # on the excitor edge
@@ -955,21 +1072,21 @@ class DynamicAccountingGraph():
                 calc_delComparer_delI(
                     linear_value=lin_val_alpha,
                     matrix=self.weibull_alpha_generator.matrix,
-                    e_kl=e_kl,
+                    e_kl=excitee_kl,
                     node_dimension=self.node_dimension
                 )
             delBeta_delI = \
                 calc_delComparer_delI(
                     linear_value=lin_val_beta,
                     matrix=self.weibull_beta_generator.matrix,
-                    e_kl=e_kl,
+                    e_kl=excitee_kl,
                     node_dimension=self.node_dimension
                 )
             delWeight_delI = \
                 calc_delComparer_delI(
                     linear_value=lin_val_weight,
                     matrix=self.weibull_weight_generator.matrix,
-                    e_kl=e_kl,
+                    e_kl=excitee_kl,
                     node_dimension=self.node_dimension
                 )
 
@@ -977,21 +1094,21 @@ class DynamicAccountingGraph():
                 calc_delComparer_delJ(
                     linear_value=lin_val_alpha,
                     matrix=self.weibull_alpha_generator.matrix,
-                    e_kl=e_kl,
+                    e_kl=excitee_kl,
                     node_dimension=self.node_dimension
                 )
             delBeta_delJ = \
                 calc_delComparer_delJ(
                     linear_value=lin_val_beta,
                     matrix=self.weibull_beta_generator.matrix,
-                    e_kl=e_kl,
+                    e_kl=excitee_kl,
                     node_dimension=self.node_dimension
                 )
             delWeight_delJ = \
                 calc_delComparer_delJ(
                     linear_value=lin_val_weight,
                     matrix=self.weibull_weight_generator.matrix,
-                    e_kl=e_kl,
+                    e_kl=excitee_kl,
                     node_dimension=self.node_dimension
                 )
 
@@ -999,21 +1116,21 @@ class DynamicAccountingGraph():
                 calc_delComparer_delK(
                     linear_value=lin_val_alpha,
                     matrix=self.weibull_alpha_generator.matrix,
-                    e_ij=e_ij,
+                    e_ij=excitor_ij,
                     node_dimension=self.node_dimension
                 )
             delBeta_delK = \
                 calc_delComparer_delK(
                     linear_value=lin_val_beta,
                     matrix=self.weibull_beta_generator.matrix,
-                    e_ij=e_ij,
+                    e_ij=excitor_ij,
                     node_dimension=self.node_dimension
                 )
             delWeight_delK = \
                 calc_delComparer_delK(
                     linear_value=lin_val_weight,
                     matrix=self.weibull_weight_generator.matrix,
-                    e_ij=e_ij,
+                    e_ij=excitor_ij,
                     node_dimension=self.node_dimension
                 )
 
@@ -1021,48 +1138,48 @@ class DynamicAccountingGraph():
                 calc_delComparer_delL(
                     linear_value=lin_val_alpha,
                     matrix=self.weibull_alpha_generator.matrix,
-                    e_ij=e_ij,
+                    e_ij=excitor_ij,
                     node_dimension=self.node_dimension
                 )
             delBeta_delL = \
                 calc_delComparer_delL(
                     linear_value=lin_val_beta,
                     matrix=self.weibull_beta_generator.matrix,
-                    e_ij=e_ij,
+                    e_ij=excitor_ij,
                     node_dimension=self.node_dimension
                 )
             delWeight_delL = \
                 calc_delComparer_delL(
                     linear_value=lin_val_weight,
                     matrix=self.weibull_weight_generator.matrix,
-                    e_ij=e_ij,
+                    e_ij=excitor_ij,
                     node_dimension=self.node_dimension
                 )
 
             delAlphaComparerdelMatrix = \
                 calc_delComparer_delMatrix(
                     linear_value=lin_val_alpha,
-                    e_ij=e_ij,
-                    e_kl=e_kl,
+                    e_ij=excitor_ij,
+                    e_kl=excitee_kl,
                 )
 
             delBetaComparerdelMatrix = \
                 calc_delComparer_delMatrix(
                     linear_value=lin_val_beta,
-                    e_ij=e_ij,
-                    e_kl=e_kl,
+                    e_ij=excitor_ij,
+                    e_kl=excitee_kl,
                 )
 
             delWeightComparerdelMatrix = \
                 calc_delComparer_delMatrix(
                     linear_value=lin_val_weight,
-                    e_ij=e_ij,
-                    e_kl=e_kl,
+                    e_ij=excitor_ij,
+                    e_kl=excitee_kl,
                 )
 
             # Apply the gradient updates
             # Node i
-            node_i.add_causal_gradient_update(
+            node_i.causal_source.add_gradient_update(
                 inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delI +
@@ -1070,12 +1187,11 @@ class DynamicAccountingGraph():
                     delBeta_delI +
                     delIntensity_delWeight[excite_index] *
                     delWeight_delI
-                ),
-                node_type='source'
+                )
             )
 
             # Node j
-            node_j.add_causal_gradient_update(
+            node_j.causal_dest.add_gradient_update(
                 inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delJ +
@@ -1083,12 +1199,11 @@ class DynamicAccountingGraph():
                     delBeta_delJ +
                     delIntensity_delWeight[excite_index] *
                     delWeight_delJ
-                ),
-                node_type='dest'
+                )
             )
 
             # Node k
-            node_k.add_causal_gradient_update(
+            node_k.causal_source.add_gradient_update(
                 inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delK +
@@ -1096,12 +1211,11 @@ class DynamicAccountingGraph():
                     delBeta_delK +
                     delIntensity_delWeight[excite_index] *
                     delWeight_delK
-                ),
-                node_type='source'
+                )
             )
 
             # Node l
-            node_l.add_causal_gradient_update(
+            node_l.causal_dest.add_gradient_update(
                 inverse_probability * delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delL +
@@ -1109,8 +1223,7 @@ class DynamicAccountingGraph():
                     delBeta_delL +
                     delIntensity_delWeight[excite_index] *
                     delWeight_delL
-                ),
-                node_type='dest'
+                )
             )
 
             # Weight matrix
@@ -1212,6 +1325,490 @@ class DynamicAccountingGraph():
         # Reset the calculations cache
         self.gradient_log = dict()
 
+    def calculate_derivatives_dot(self):
+        """The calculate_derivatives function for the 'dot' mode
+        """
+
+        # Calculate the inverse of the probability
+        inverse_probability = 1 / max(0.00001, self.gradient_log['P'])
+
+        # Calculate partial derivatives that are
+        # independent of the excitor edge.
+        delP_delIntensity = \
+            calc_delP_delIntensity(
+                self.gradient_log['count'],
+                self.gradient_log['sum_Intensity'])
+        delIntensity_delAlpha = [
+            calc_delIntensity_delAlpha(
+                time,
+                self.gradient_log['alphas'][excite_index],
+                self.gradient_log['betas'][excite_index],
+                self.gradient_log['weights'][excite_index]
+            )
+            for excite_index, time in enumerate(self.gradient_log['times'])
+        ]
+        delIntensity_delBeta = [
+            calc_delIntensity_delBeta(
+                time,
+                self.gradient_log['alphas'][excite_index],
+                self.gradient_log['betas'][excite_index],
+                self.gradient_log['weights'][excite_index]
+            )
+            for excite_index, time in enumerate(self.gradient_log['times'])
+        ]
+        delIntensity_delWeight = [
+            calc_delIntensity_delWeight(
+                time,
+                self.gradient_log['alphas'][excite_index],
+                self.gradient_log['betas'][excite_index]
+            )
+            for excite_index, time in enumerate(self.gradient_log['times'])
+        ]
+
+        # Get the indices of the nodes in the excitee edge
+        k = self.gradient_log['k']
+        l = self.gradient_log['l']
+
+        # Get the nodes
+        node_k = self.nodes[k]
+        node_l = self.nodes[l]
+
+        # Calculate the spontaneous intensity gradient updates
+        # - Calculate the partial derivative
+        baseline_linear_value = \
+            self.gradient_log['baseline_linear_value']
+        delBaselineIntensity_delZero = \
+            calc_delBaselineIntensity_delZero(
+                baseline_linear_value
+            )
+
+        source_balance = \
+            self.gradient_log['source_balance']
+        delBaselineIntensity_delOne = \
+            calc_delBaselineIntensity_delOne(
+                baseline_linear_value,
+                source_balance
+            )
+
+        dest_balance = \
+            self.gradient_log['dest_balance']
+        delBaselineIntensity_delTwo = \
+            calc_delBaselineIntensity_delTwo(
+                baseline_linear_value,
+                dest_balance
+            )
+
+        s_k_0 = node_k.spontaneous_source_0.value
+        s_l_0 = node_l.spontaneous_dest_0.value
+
+        s_k_1 = node_k.spontaneous_source_1.value
+        s_l_1 = node_l.spontaneous_dest_1.value
+
+        s_k_2 = node_k.spontaneous_source_2.value
+        s_l_2 = node_l.spontaneous_dest_2.value
+
+
+        delZero_delK = \
+            calc_delBaselineDotproduct_delParam(
+                s_l_0
+            )
+        delZero_delL = \
+            calc_delBaselineDotproduct_delParam(
+                s_k_0
+            )
+        delOne_delK = \
+            calc_delBaselineDotproduct_delParam(
+                s_l_1
+            )
+        delOne_delL = \
+            calc_delBaselineDotproduct_delParam(
+                s_k_1
+            )
+        delTwo_delK = \
+            calc_delBaselineDotproduct_delParam(
+                s_l_2
+            )
+        delTwo_delL = \
+            calc_delBaselineDotproduct_delParam(
+                s_k_2
+            )
+
+        # - Apply the updates
+        node_k.spontaneous_source_0.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delZero *
+                delZero_delK
+            )
+        )
+        node_k.spontaneous_source_1.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delOne *
+                delOne_delK
+            )
+        )
+        node_k.spontaneous_source_2.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delTwo *
+                delTwo_delK
+            )
+        )
+
+        node_l.spontaneous_dest_0.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delZero *
+                delZero_delL
+            )
+        )
+        node_l.spontaneous_dest_1.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delOne *
+                delOne_delL
+            )
+        )
+        node_l.spontaneous_dest_2.add_gradient_update(
+            inverse_probability * delP_delIntensity * (
+                delBaselineIntensity_delTwo *
+                delTwo_delL
+            )
+        )
+
+        # Get the causal node embeddings for the excitee
+        e_k_alpha = node_k.causal_excitee_source_alpha.value
+        e_l_alpha = node_l.causal_excitee_dest_alpha.value
+
+        e_k_beta = node_k.causal_excitee_source_beta.value
+        e_l_beta = node_l.causal_excitee_dest_beta.value
+
+        e_k_weight = node_k.causal_excitee_source_weight.value
+        e_l_weight = node_l.causal_excitee_dest_weight.value
+
+        # Get the edge embeddings for the excitee
+        excitee_kl_alpha = self.edge_embedder.embed_edge(e_k_alpha, e_l_alpha)
+        excitee_kl_beta = self.edge_embedder.embed_edge(e_k_beta, e_l_beta)
+        excitee_kl_weight = self.edge_embedder.embed_edge(e_k_weight, e_l_weight)
+
+        # Add to debug log
+        if self.debug_mode:
+            self.add_to_debug_log(
+                f'Inverse probability (edge {k}, {l})',
+                inverse_probability,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delP_delIntensity (edge {k}, {l})',
+                delP_delIntensity,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delIntensity_delAlpha (edge {k}, {l})',
+                delIntensity_delAlpha,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delIntensity_delBeta (edge {k}, {l})',
+                delIntensity_delBeta,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delIntensity_delWeight (edge {k}, {l})',
+                delIntensity_delWeight,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'baseline_linear_value (edge {k}, {l})',
+                baseline_linear_value,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delBaselineIntensity_delZero (edge {k}, {l})',
+                delBaselineIntensity_delZero,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'source_balance (edge {k}, {l})',
+                source_balance,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delBaselineIntensity_delOne (edge {k}, {l})',
+                delBaselineIntensity_delOne,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'dest_balance (edge {k}, {l})',
+                dest_balance,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delBaselineIntensity_delTwo (edge {k}, {l})',
+                delBaselineIntensity_delTwo,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delZero_delK (edge {k}, {l})',
+                delZero_delK,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delZero_delL (edge {k}, {l})',
+                delZero_delL,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delOne_delK (edge {k}, {l})',
+                delOne_delK,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delOne_delL (edge {k}, {l})',
+                delOne_delL,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delTwo_delK (edge {k}, {l})',
+                delZero_delL,
+                edges=[(k,l)])
+            self.add_to_debug_log(
+                f'delTwo_delL (edge {k}, {l})',
+                delOne_delK,
+                edges=[(k,l)])
+
+        for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
+            # Get linear values from the calculations of the
+            # Comparer objects
+            lin_val_alpha = self.gradient_log['lin_alphas'][excite_index]
+            lin_val_beta = self.gradient_log['lin_betas'][excite_index]
+            lin_val_weight = self.gradient_log['lin_weights'][excite_index]
+
+            # Get the nodes for the excitor edge
+            node_i = self.nodes[i]
+            node_j = self.nodes[j]
+
+            # Get the causal node embeddings for the excitor
+            r_i_alpha = node_i.causal_excitor_source_alpha.value
+            r_j_alpha = node_j.causal_excitor_dest_alpha.value
+
+            r_i_beta = node_i.causal_excitor_source_beta.value
+            r_j_beta = node_j.causal_excitor_dest_beta.value
+
+            r_i_weight = node_i.causal_excitor_source_weight.value
+            r_j_weight = node_j.causal_excitor_dest_weight.value
+
+            # Get the edge embeddings for the excitor
+            excitor_ij_alpha = self.edge_embedder.embed_edge(r_i_alpha, r_j_alpha)
+            excitor_ij_beta = self.edge_embedder.embed_edge(r_i_beta, r_j_beta)
+            excitor_ij_weight = self.edge_embedder.embed_edge(r_i_weight, r_j_weight)
+
+            # Calculate the partial derivates that depend
+            # on the excitor edge
+            delAlpha_delI = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_alpha,
+                    node_embedding=r_j_alpha,
+                    edge_embedding=excitee_kl_alpha
+                )
+            delBeta_delI = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_beta,
+                    node_embedding=r_j_beta,
+                    edge_embedding=excitee_kl_beta
+                )
+            delWeight_delI = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_weight,
+                    node_embedding=r_j_weight,
+                    edge_embedding=excitee_kl_weight
+                )
+
+            delAlpha_delJ = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_alpha,
+                    node_embedding=r_i_alpha,
+                    edge_embedding=excitee_kl_alpha
+                )
+            delBeta_delJ = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_beta,
+                    node_embedding=r_i_beta,
+                    edge_embedding=excitee_kl_beta
+                )
+            delWeight_delJ = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_weight,
+                    node_embedding=r_i_weight,
+                    edge_embedding=excitee_kl_weight
+                )
+
+            delAlpha_delK = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_alpha,
+                    node_embedding=e_l_alpha,
+                    edge_embedding=excitor_ij_alpha
+                )
+            delBeta_delK = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_beta,
+                    node_embedding=e_l_beta,
+                    edge_embedding=excitor_ij_beta
+                )
+            delWeight_delK = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_weight,
+                    node_embedding=e_l_weight,
+                    edge_embedding=excitor_ij_weight
+                )
+
+            delAlpha_delL = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_alpha,
+                    node_embedding=e_k_alpha,
+                    edge_embedding=excitor_ij_alpha
+                )
+            delBeta_delL = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_beta,
+                    node_embedding=e_k_beta,
+                    edge_embedding=excitor_ij_beta
+                )
+            delWeight_delL = \
+                calc_delCausalDotproduct_delParam(
+                    linear_value=lin_val_weight,
+                    node_embedding=e_k_weight,
+                    edge_embedding=excitor_ij_weight
+                )
+
+            # Apply the gradient updates
+            # Node i
+            node_i.causal_excitor_source_alpha.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delAlpha[excite_index] *
+                    delAlpha_delI
+                )
+            )
+            node_i.causal_excitor_source_beta.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delBeta[excite_index] *
+                    delBeta_delI
+                )
+            )
+            node_i.causal_excitor_source_weight.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delWeight[excite_index] *
+                    delWeight_delI
+                )
+            )
+
+            # Node j
+            node_j.causal_excitor_dest_alpha.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delAlpha[excite_index] *
+                    delAlpha_delJ
+                )
+            )
+            node_j.causal_excitor_dest_beta.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delBeta[excite_index] *
+                    delBeta_delJ
+                )
+            )
+            node_j.causal_excitor_dest_weight.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delWeight[excite_index] *
+                    delWeight_delJ
+                )
+            )
+
+            # Node k
+            node_k.causal_excitee_source_alpha.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delAlpha[excite_index] *
+                    delAlpha_delK
+                )
+            )
+            node_k.causal_excitee_source_beta.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delBeta[excite_index] *
+                    delBeta_delK
+                )
+            )
+            node_k.causal_excitee_source_weight.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delWeight[excite_index] *
+                    delWeight_delK
+                )
+            )
+
+            # Node l
+            node_l.causal_excitee_dest_alpha.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delAlpha[excite_index] *
+                    delAlpha_delL
+                )
+            )
+            node_l.causal_excitee_dest_beta.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delBeta[excite_index] *
+                    delBeta_delL
+                )
+            )
+            node_l.causal_excitee_dest_weight.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delIntensity_delWeight[excite_index] *
+                    delWeight_delL
+                )
+            )
+
+            # Add to debug log
+            if self.debug_mode and self.debug_monitor_excitement:
+                self.add_to_debug_log(
+                    f'lin_val_alpha (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    lin_val_alpha,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'lin_val_beta (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    lin_val_beta,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'lin_val_weight (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    lin_val_weight,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delAlpha_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delAlpha_delI,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delBeta_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delBeta_delI,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delWeight_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delWeight_delI,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delAlpha_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delAlpha_delJ,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delBeta_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delBeta_delJ,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delWeight_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delWeight_delJ,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delAlpha_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delAlpha_delK,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delBeta_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delBeta_delK,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delWeight_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delWeight_delK,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delAlpha_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delAlpha_delL,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delBeta_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delBeta_delL,
+                    edges=[(i,j), (k,l)])
+                self.add_to_debug_log(
+                    f'delWeight_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
+                    delWeight_delL,
+                    edges=[(i,j), (k,l)])
+
+        # Reset the calculations cache
+        self.gradient_log = dict()
+
     def apply_gradient_updates(self):
         """Take the pending gradient updates and
         update the parameters accordingly
@@ -1257,26 +1854,27 @@ class DynamicAccountingGraph():
             )
 
         # - Causal matrices
-        self.weibull_alpha_generator.reset(
-                discard_gradient_updates=discard_gradient_updates
-            )
-        self.weibull_beta_generator.reset(
-                discard_gradient_updates=discard_gradient_updates
-            )
-        self.weibull_weight_generator.reset(
-                discard_gradient_updates=discard_gradient_updates
-            )
+        if self.mode == 'matrix':
+            self.weibull_alpha_generator.reset(
+                    discard_gradient_updates=discard_gradient_updates
+                )
+            self.weibull_beta_generator.reset(
+                    discard_gradient_updates=discard_gradient_updates
+                )
+            self.weibull_weight_generator.reset(
+                    discard_gradient_updates=discard_gradient_updates
+                )
 
-        # - Spontaneous matrices
-        self.base_param_0.reset(
-                discard_gradient_updates=discard_gradient_updates
-            )
-        self.base_param_1.reset(
-                discard_gradient_updates=discard_gradient_updates
-            )
-        self.base_param_2.reset(
-                discard_gradient_updates=discard_gradient_updates
-            )
+            # - Spontaneous matrices
+            self.base_param_0.reset(
+                    discard_gradient_updates=discard_gradient_updates
+                )
+            self.base_param_1.reset(
+                    discard_gradient_updates=discard_gradient_updates
+                )
+            self.base_param_2.reset(
+                    discard_gradient_updates=discard_gradient_updates
+                )
 
         # Update pairs of edges which could
         # excite each other under the updated
