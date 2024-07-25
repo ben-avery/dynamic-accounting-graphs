@@ -28,7 +28,7 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 mode='matrix', learning_rate=0.001, regularisation_rate=0.01,
+                 mode='dot', learning_rate=0.001, regularisation_rate=0.01,
                  debug_mode=False, debug_edges_to_monitor=[],
                  debug_monitor_excitement=False):
         """Initialise the class
