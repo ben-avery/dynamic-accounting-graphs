@@ -256,14 +256,6 @@ class Node():
 
         elif self.mode == 'dot':
             if spontaneous_on:
-                self.spontaneous_source_0.clear_gradient_updates()
-                self.spontaneous_source_1.clear_gradient_updates()
-                self.spontaneous_source_2.clear_gradient_updates()
-
-                self.spontaneous_dest_0.clear_gradient_updates()
-                self.spontaneous_dest_1.clear_gradient_updates()
-                self.spontaneous_dest_2.clear_gradient_updates()
-            else:
                 self.spontaneous_source_0.apply_gradient_updates()
                 self.spontaneous_source_1.apply_gradient_updates()
                 self.spontaneous_source_2.apply_gradient_updates()
@@ -271,6 +263,14 @@ class Node():
                 self.spontaneous_dest_0.apply_gradient_updates()
                 self.spontaneous_dest_1.apply_gradient_updates()
                 self.spontaneous_dest_2.apply_gradient_updates()
+            else:
+                self.spontaneous_source_0.clear_gradient_updates()
+                self.spontaneous_source_1.clear_gradient_updates()
+                self.spontaneous_source_2.clear_gradient_updates()
+
+                self.spontaneous_dest_0.clear_gradient_updates()
+                self.spontaneous_dest_1.clear_gradient_updates()
+                self.spontaneous_dest_2.clear_gradient_updates()
 
             self.causal_excitor_source_alpha.apply_gradient_updates()
             self.causal_excitor_source_beta.apply_gradient_updates()
