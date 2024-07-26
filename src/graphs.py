@@ -598,19 +598,33 @@ class DynamicAccountingGraph():
         # Make it positive
         return log_exp_function(full_linear_output) + min_intensity
 
-    def edge_intensity(self, i, j):
+    def edge_intensity(self, i, j, spontaneous_on=True):
         """Get the total intensity for a particular edge
 
         Args:
             i (int): Index of the source node
             j (int): Index of the destination node
+            spontaneous_on (bool, optional): Whether the spontaneous part
+                of the model is enabled. Recommended to have off for the
+                early part of the model learning, to allow the causal part
+                of the model to dominate.
+                Defaults to True.
 
         Returns:
             float: The total intensity of the edge
         """
 
+        # Record whether the spontaneous part of the model
+        # is active
+        self.gradient_log['spontaneous_on'] = spontaneous_on
+
         # Start with the baseline intensity of the edge
-        intensity = self.edge_baseline(i, j)
+        if spontaneous_on:
+            intensity = self.edge_baseline(i, j)
+        else:
+            # If the spontaneous part of the model is disabled,
+            # set a low constant probability across all edges
+            intensity = 0.00001
 
         # Add to debug log
         if self.debug_mode:
@@ -709,7 +723,8 @@ class DynamicAccountingGraph():
 
         return intensity
 
-    def edge_probability(self, i, j, count):
+    def edge_probability(self, i, j, count,
+                         spontaneous_on=True):
         """The probability that a particular edge occured a
         given number of times on this day.
 
@@ -718,6 +733,11 @@ class DynamicAccountingGraph():
             j (int): Index of the destination node
             count (int): The number of times that this edge
                 occurred on this day
+            spontaneous_on (bool, optional): Whether the spontaneous part
+                of the model is enabled. Recommended to have off for the
+                early part of the model learning, to allow the causal part
+                of the model to dominate.
+                Defaults to True.
 
         Returns:
             float: A probability
@@ -732,7 +752,8 @@ class DynamicAccountingGraph():
         # distribution with the intensity as the mean
         probability = poisson.pmf(
             k=count,
-            mu=self.edge_intensity(i, j)
+            mu=self.edge_intensity(
+                i, j, spontaneous_on=spontaneous_on)
         )
 
         # Add to debug log
@@ -752,9 +773,16 @@ class DynamicAccountingGraph():
 
         return probability
 
-    def day_log_probability(self):
+    def day_log_probability(self, spontaneous_on=True):
         """The log probability of all the edges that have
         occurred on this day
+
+        Args:
+            spontaneous_on (bool, optional): Whether the spontaneous part
+                of the model is enabled. Recommended to have off for the
+                early part of the model learning, to allow the causal part
+                of the model to dominate.
+                Defaults to True.
 
         Returns:
             float: The log probability
@@ -785,7 +813,8 @@ class DynamicAccountingGraph():
                     max(
                         0.00001,
                         self.edge_probability(
-                            i, j, count
+                            i, j, count,
+                            spontaneous_on=spontaneous_on
                         )
                     )
                 )
@@ -868,111 +897,112 @@ class DynamicAccountingGraph():
         # Get the edge embedding
         excitee_kl = self.edge_embedder.embed_edge(e_k, e_l)
 
-        # Calculate the spontaneous intensity gradient updates
-        # - Calculate the partial derivative
-        baseline_linear_value = \
-            self.gradient_log['baseline_linear_value']
-        delBaselineIntensity_delZero = \
-            calc_delBaselineIntensity_delZero(
-                baseline_linear_value
+        if self.gradient_log['spontaneous_on']:
+            # Calculate the spontaneous intensity gradient updates
+            # - Calculate the partial derivative
+            baseline_linear_value = \
+                self.gradient_log['baseline_linear_value']
+            delBaselineIntensity_delZero = \
+                calc_delBaselineIntensity_delZero(
+                    baseline_linear_value
+                )
+
+            source_balance = \
+                self.gradient_log['source_balance']
+            delBaselineIntensity_delOne = \
+                calc_delBaselineIntensity_delOne(
+                    baseline_linear_value,
+                    source_balance
+                )
+
+            dest_balance = \
+                self.gradient_log['dest_balance']
+            delBaselineIntensity_delTwo = \
+                calc_delBaselineIntensity_delTwo(
+                    baseline_linear_value,
+                    dest_balance
+                )
+
+            s_k = node_k.spontaneous_source.value
+            s_l = node_l.spontaneous_dest.value
+            delZero_delK = \
+                calc_delBaselineComparer_delK(
+                    self.base_param_0.matrix,
+                    s_l
+                )
+            delZero_delL = \
+                calc_delBaselineComparer_delL(
+                    self.base_param_0.matrix,
+                    s_k
+                )
+            delOne_delK = \
+                calc_delBaselineComparer_delK(
+                    self.base_param_1.matrix,
+                    s_l
+                )
+            delOne_delL = \
+                calc_delBaselineComparer_delL(
+                    self.base_param_1.matrix,
+                    s_k
+                )
+            delTwo_delK = \
+                calc_delBaselineComparer_delK(
+                    self.base_param_2.matrix,
+                    s_l
+                )
+            delTwo_delL = \
+                calc_delBaselineComparer_delL(
+                    self.base_param_2.matrix,
+                    s_k
+                )
+            delBaselineComparer_delMatrix = \
+                calc_delBaselineComparer_delMatrix(
+                    s_k, s_l
+                )
+
+            # - Apply the updates
+            node_k.spontaneous_source.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delZero *
+                    delZero_delK +
+                    delBaselineIntensity_delOne *
+                    delOne_delK +
+                    delBaselineIntensity_delTwo *
+                    delTwo_delK
+                )
             )
 
-        source_balance = \
-            self.gradient_log['source_balance']
-        delBaselineIntensity_delOne = \
-            calc_delBaselineIntensity_delOne(
-                baseline_linear_value,
-                source_balance
+            node_l.spontaneous_dest.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delZero *
+                    delZero_delL +
+                    delBaselineIntensity_delOne *
+                    delOne_delL +
+                    delBaselineIntensity_delTwo *
+                    delTwo_delL
+                )
             )
 
-        dest_balance = \
-            self.gradient_log['dest_balance']
-        delBaselineIntensity_delTwo = \
-            calc_delBaselineIntensity_delTwo(
-                baseline_linear_value,
-                dest_balance
+            self.base_param_0.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delZero *
+                    delBaselineComparer_delMatrix
+                )
             )
 
-        s_k = node_k.spontaneous_source.value
-        s_l = node_l.spontaneous_dest.value
-        delZero_delK = \
-            calc_delBaselineComparer_delK(
-                self.base_param_0.matrix,
-                s_l
-            )
-        delZero_delL = \
-            calc_delBaselineComparer_delL(
-                self.base_param_0.matrix,
-                s_k
-            )
-        delOne_delK = \
-            calc_delBaselineComparer_delK(
-                self.base_param_1.matrix,
-                s_l
-            )
-        delOne_delL = \
-            calc_delBaselineComparer_delL(
-                self.base_param_1.matrix,
-                s_k
-            )
-        delTwo_delK = \
-            calc_delBaselineComparer_delK(
-                self.base_param_2.matrix,
-                s_l
-            )
-        delTwo_delL = \
-            calc_delBaselineComparer_delL(
-                self.base_param_2.matrix,
-                s_k
-            )
-        delBaselineComparer_delMatrix = \
-            calc_delBaselineComparer_delMatrix(
-                s_k, s_l
+            self.base_param_1.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delOne *
+                    delBaselineComparer_delMatrix
+                )
             )
 
-        # - Apply the updates
-        node_k.spontaneous_source.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delZero *
-                delZero_delK +
-                delBaselineIntensity_delOne *
-                delOne_delK +
-                delBaselineIntensity_delTwo *
-                delTwo_delK
+            self.base_param_2.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delTwo *
+                    delBaselineComparer_delMatrix
+                )
             )
-        )
-
-        node_l.spontaneous_dest.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delZero *
-                delZero_delL +
-                delBaselineIntensity_delOne *
-                delOne_delL +
-                delBaselineIntensity_delTwo *
-                delTwo_delL
-            )
-        )
-
-        self.base_param_0.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delZero *
-                delBaselineComparer_delMatrix
-            )
-        )
-
-        self.base_param_1.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delOne *
-                delBaselineComparer_delMatrix
-            )
-        )
-
-        self.base_param_2.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delTwo *
-                delBaselineComparer_delMatrix
-            )
-        )
 
         # Add to debug log
         if self.debug_mode:
@@ -1373,104 +1403,105 @@ class DynamicAccountingGraph():
         node_k = self.nodes[k]
         node_l = self.nodes[l]
 
-        # Calculate the spontaneous intensity gradient updates
-        # - Calculate the partial derivative
-        baseline_linear_value = \
-            self.gradient_log['baseline_linear_value']
-        delBaselineIntensity_delZero = \
-            calc_delBaselineIntensity_delZero(
-                baseline_linear_value
+        if self.gradient_log['spontaneous_on']:
+            # Calculate the spontaneous intensity gradient updates
+            # - Calculate the partial derivative
+            baseline_linear_value = \
+                self.gradient_log['baseline_linear_value']
+            delBaselineIntensity_delZero = \
+                calc_delBaselineIntensity_delZero(
+                    baseline_linear_value
+                )
+
+            source_balance = \
+                self.gradient_log['source_balance']
+            delBaselineIntensity_delOne = \
+                calc_delBaselineIntensity_delOne(
+                    baseline_linear_value,
+                    source_balance
+                )
+
+            dest_balance = \
+                self.gradient_log['dest_balance']
+            delBaselineIntensity_delTwo = \
+                calc_delBaselineIntensity_delTwo(
+                    baseline_linear_value,
+                    dest_balance
+                )
+
+            s_k_0 = node_k.spontaneous_source_0.value
+            s_l_0 = node_l.spontaneous_dest_0.value
+
+            s_k_1 = node_k.spontaneous_source_1.value
+            s_l_1 = node_l.spontaneous_dest_1.value
+
+            s_k_2 = node_k.spontaneous_source_2.value
+            s_l_2 = node_l.spontaneous_dest_2.value
+
+
+            delZero_delK = \
+                calc_delBaselineDotproduct_delParam(
+                    s_l_0
+                )
+            delZero_delL = \
+                calc_delBaselineDotproduct_delParam(
+                    s_k_0
+                )
+            delOne_delK = \
+                calc_delBaselineDotproduct_delParam(
+                    s_l_1
+                )
+            delOne_delL = \
+                calc_delBaselineDotproduct_delParam(
+                    s_k_1
+                )
+            delTwo_delK = \
+                calc_delBaselineDotproduct_delParam(
+                    s_l_2
+                )
+            delTwo_delL = \
+                calc_delBaselineDotproduct_delParam(
+                    s_k_2
+                )
+
+            # - Apply the updates
+            node_k.spontaneous_source_0.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delZero *
+                    delZero_delK
+                )
+            )
+            node_k.spontaneous_source_1.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delOne *
+                    delOne_delK
+                )
+            )
+            node_k.spontaneous_source_2.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delTwo *
+                    delTwo_delK
+                )
             )
 
-        source_balance = \
-            self.gradient_log['source_balance']
-        delBaselineIntensity_delOne = \
-            calc_delBaselineIntensity_delOne(
-                baseline_linear_value,
-                source_balance
+            node_l.spontaneous_dest_0.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delZero *
+                    delZero_delL
+                )
             )
-
-        dest_balance = \
-            self.gradient_log['dest_balance']
-        delBaselineIntensity_delTwo = \
-            calc_delBaselineIntensity_delTwo(
-                baseline_linear_value,
-                dest_balance
+            node_l.spontaneous_dest_1.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delOne *
+                    delOne_delL
+                )
             )
-
-        s_k_0 = node_k.spontaneous_source_0.value
-        s_l_0 = node_l.spontaneous_dest_0.value
-
-        s_k_1 = node_k.spontaneous_source_1.value
-        s_l_1 = node_l.spontaneous_dest_1.value
-
-        s_k_2 = node_k.spontaneous_source_2.value
-        s_l_2 = node_l.spontaneous_dest_2.value
-
-
-        delZero_delK = \
-            calc_delBaselineDotproduct_delParam(
-                s_l_0
+            node_l.spontaneous_dest_2.add_gradient_update(
+                inverse_probability * delP_delIntensity * (
+                    delBaselineIntensity_delTwo *
+                    delTwo_delL
+                )
             )
-        delZero_delL = \
-            calc_delBaselineDotproduct_delParam(
-                s_k_0
-            )
-        delOne_delK = \
-            calc_delBaselineDotproduct_delParam(
-                s_l_1
-            )
-        delOne_delL = \
-            calc_delBaselineDotproduct_delParam(
-                s_k_1
-            )
-        delTwo_delK = \
-            calc_delBaselineDotproduct_delParam(
-                s_l_2
-            )
-        delTwo_delL = \
-            calc_delBaselineDotproduct_delParam(
-                s_k_2
-            )
-
-        # - Apply the updates
-        node_k.spontaneous_source_0.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delZero *
-                delZero_delK
-            )
-        )
-        node_k.spontaneous_source_1.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delOne *
-                delOne_delK
-            )
-        )
-        node_k.spontaneous_source_2.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delTwo *
-                delTwo_delK
-            )
-        )
-
-        node_l.spontaneous_dest_0.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delZero *
-                delZero_delL
-            )
-        )
-        node_l.spontaneous_dest_1.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delOne *
-                delOne_delL
-            )
-        )
-        node_l.spontaneous_dest_2.add_gradient_update(
-            inverse_probability * delP_delIntensity * (
-                delBaselineIntensity_delTwo *
-                delTwo_delL
-            )
-        )
 
         # Get the causal node embeddings for the excitee
         e_k_alpha = node_k.causal_excitee_source_alpha.value
@@ -1819,14 +1850,26 @@ class DynamicAccountingGraph():
             node.apply_gradient_updates()
 
         # Update matrices in the Comparer objects
-        self.weibull_alpha_generator.apply_gradient_updates()
-        self.weibull_beta_generator.apply_gradient_updates()
-        self.weibull_weight_generator.apply_gradient_updates()
+        if self.mode == 'matrix':
+            self.weibull_alpha_generator.apply_gradient_updates()
+            self.weibull_beta_generator.apply_gradient_updates()
+            self.weibull_weight_generator.apply_gradient_updates()
 
-    def reset(self, discard_gradient_updates=False):
+    def reset(self, discard_gradient_updates=False,
+              spontaneous_on=True):
         """Remove edges and excitation to prepare for another
         epoch of training (embeddings and matrice learnings
         are retained)
+
+        Args:
+            discard_gradient_updates (bool, optional): Whether to discard
+                the gradient updates (True), or to apply them (False).
+                Defaults to False.
+            spontaneous_on (bool, optional): Whether the spontaneous part
+                of the model is enabled. Recommended to have off for the
+                early part of the model learning, to allow the causal part
+                of the model to dominate.
+                Defaults to True.
         """
 
         # Set the time back to the start of the period
@@ -1850,7 +1893,8 @@ class DynamicAccountingGraph():
         # - Nodes
         for node in self.nodes:
             node.reset(
-                discard_gradient_updates=discard_gradient_updates
+                discard_gradient_updates=discard_gradient_updates,
+                spontaneous_on=spontaneous_on
             )
 
         # - Causal matrices
@@ -1866,15 +1910,26 @@ class DynamicAccountingGraph():
                 )
 
             # - Spontaneous matrices
-            self.base_param_0.reset(
-                    discard_gradient_updates=discard_gradient_updates
-                )
-            self.base_param_1.reset(
-                    discard_gradient_updates=discard_gradient_updates
-                )
-            self.base_param_2.reset(
-                    discard_gradient_updates=discard_gradient_updates
-                )
+            if spontaneous_on:
+                self.base_param_0.reset(
+                        discard_gradient_updates=discard_gradient_updates
+                    )
+                self.base_param_1.reset(
+                        discard_gradient_updates=discard_gradient_updates
+                    )
+                self.base_param_2.reset(
+                        discard_gradient_updates=discard_gradient_updates
+                    )
+            else:
+                self.base_param_0.reset(
+                        discard_gradient_updates=True
+                    )
+                self.base_param_1.reset(
+                        discard_gradient_updates=True
+                    )
+                self.base_param_2.reset(
+                        discard_gradient_updates=True
+                    )
 
         # Update pairs of edges which could
         # excite each other under the updated
