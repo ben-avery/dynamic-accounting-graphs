@@ -86,7 +86,7 @@ def train(graph, edges_by_day, last_day, iterations=1500,
         # Update the parameters using gradient ascent, and
         # then remove the edges and excitation ready for
         # the next epoch
-        graph.reset()
+        graph.reset(spontaneous_on=spontaneous_on)
 
     if plot_log_likelihood:
         # Plot log likelihood
