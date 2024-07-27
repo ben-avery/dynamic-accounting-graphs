@@ -28,7 +28,11 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 mode='dot', learning_rate=0.001, regularisation_rate=0.01,
+                 mode='dot',
+                 causal_learning_rate=0.01,
+                 causal_regularisation_rate=10**(-6),
+                 spontaneous_learning_rate=0.001,
+                 spontaneous_regularisation_rate=10**(-5),
                  debug_mode=False, debug_edges_to_monitor=[],
                  debug_monitor_excitement=False):
         """Initialise the class
@@ -40,18 +44,24 @@ class DynamicAccountingGraph():
             mode (str, optional): The method for generating parameter
                 values from embeddings. Can either be 'matrix' or 'dot'.
                 Defaults to 'matrix'.
-            learning_rate (float, optional): The learning rate for the
-                gradient ascent algorithm. Defaults to 0.001.
-            regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty. Defaults to 0.01.
+            causal_learning_rate (float, optional): The learning rate for the
+                optimisation of causal parameters. Defaults to 0.001.
+            causal_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of causal parameters. Defaults to 0.01.
+            spontaneous_learning_rate (float, optional): The learning rate for the
+                optimisation of spontaneous parameters. Defaults to 0.001.
+            spontaneous_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of spontaneous parameters. Defaults to 0.01.
             debug_mode (bool, optional): Whether to output details of the
                 calculations to a debug file. Defaults to False.
         """
         self.time = 0
         self.epoch = 0
 
-        self.learning_rate = learning_rate
-        self.regularisation_rate = regularisation_rate
+        self.causal_learning_rate = causal_learning_rate
+        self.causal_regularisation_rate = causal_regularisation_rate
+        self.spontaneous_learning_rate = spontaneous_learning_rate
+        self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
         # Get the modes
         self.mode = mode
@@ -80,8 +90,10 @@ class DynamicAccountingGraph():
                 name=account.name,
                 opening_balance=account.balance,
                 dimension=node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                causal_learning_rate=self.causal_learning_rate,
+                causal_regularisation_rate=self.causal_regularisation_rate,
+                spontaneous_learning_rate=self.spontaneous_learning_rate,
+                spontaneous_regularisation_rate=self.spontaneous_regularisation_rate,
                 mode=node_mode,
                 meta_data={
                     'account_number': account.number,
@@ -105,21 +117,21 @@ class DynamicAccountingGraph():
             # parameters
             self.weibull_weight_generator = EdgeComparer(
                 dimension=self.edge_embedder.output_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.causal_learning_rate,
+                regularisation_rate=self.causal_regularisation_rate,
                 mode=comparer_mode
             )
             self.weibull_alpha_generator = EdgeComparer(
                 dimension=self.edge_embedder.output_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.causal_learning_rate,
+                regularisation_rate=self.causal_regularisation_rate,
                 mode=comparer_mode,
                 min_at=0.5
             )
             self.weibull_beta_generator = EdgeComparer(
                 dimension=self.edge_embedder.output_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.causal_learning_rate,
+                regularisation_rate=self.causal_regularisation_rate,
                 mode=comparer_mode,
                 min_at=1
             )
@@ -128,48 +140,48 @@ class DynamicAccountingGraph():
             # baseline intensity
             self.base_param_0 = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.spontaneous_learning_rate,
+                regularisation_rate=self.spontaneous_regularisation_rate,
                 mode=comparer_mode, positive_output=False
             )
             self.base_param_1 = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.spontaneous_learning_rate,
+                regularisation_rate=self.spontaneous_regularisation_rate,
                 mode=comparer_mode, positive_output=False
             )
             self.base_param_2 = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.spontaneous_learning_rate,
+                regularisation_rate=self.spontaneous_regularisation_rate,
                 mode=comparer_mode, positive_output=False
             )
         elif self.mode == 'dot':
             self.causal_comparer_weight = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.causal_learning_rate,
+                regularisation_rate=self.causal_regularisation_rate,
                 mode=comparer_mode, positive_output=True
             )
             self.causal_comparer_alpha = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.causal_learning_rate,
+                regularisation_rate=self.causal_regularisation_rate,
                 mode=comparer_mode, positive_output=True,
                 min_at=0.5
             )
             self.causal_comparer_beta = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.causal_learning_rate,
+                regularisation_rate=self.causal_regularisation_rate,
                 mode=comparer_mode, positive_output=True,
                 min_at=1.0
             )
 
             self.spontaneous_comparer = EdgeComparer(
                 dimension=self.node_dimension,
-                learning_rate=self.learning_rate,
-                regularisation_rate=self.regularisation_rate,
+                learning_rate=self.spontaneous_learning_rate,
+                regularisation_rate=self.spontaneous_regularisation_rate,
                 mode=comparer_mode, positive_output=False
             )
 

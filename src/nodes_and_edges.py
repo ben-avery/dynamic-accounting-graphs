@@ -10,7 +10,10 @@ class Node():
     learning functions
     """
     def __init__(self, name, opening_balance, dimension,
-                 learning_rate=0.001, regularisation_rate=0.01,
+                 causal_learning_rate=0.001,
+                 causal_regularisation_rate=0.01,
+                 spontaneous_learning_rate=0.001,
+                 spontaneous_regularisation_rate=0.01,
                  mode='matrix', meta_data=None):
         """Initialise the class
 
@@ -19,10 +22,14 @@ class Node():
             opening_balance (float): The monetary value accumulated in the
                 associated account at the start of the period
             dimension (int): The dimension of the node embeddings
-            learning_rate (float, optional): The learning rate for the
-                gradient ascent algorithm. Defaults to 0.001.
-            regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty. Defaults to 0.01.
+            causal_learning_rate (float, optional): The learning rate for the
+                optimisation of causal parameters. Defaults to 0.001.
+            causal_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of causal parameters. Defaults to 0.01.
+            spontaneous_learning_rate (float, optional): The learning rate for the
+                optimisation of spontaneous parameters. Defaults to 0.001.
+            spontaneous_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of spontaneous parameters. Defaults to 0.01.
             mode (str, optional): The method to use for generating a
                 real-valued output. The valid options are 'dot' or 'matrix'.
                 Defaults to 'matrix'.
@@ -40,8 +47,10 @@ class Node():
         self.pending_balance_changes = 0
         self.dimension = dimension
         self.meta_data = meta_data
-        self.learning_rate = learning_rate
-        self.regularisation_rate = regularisation_rate
+        self.causal_learning_rate = causal_learning_rate
+        self.causal_regularisation_rate = causal_regularisation_rate
+        self.spontaneous_learning_rate = spontaneous_learning_rate
+        self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
         # Create the embeddings of the node
         self.mode = mode
@@ -49,142 +58,142 @@ class Node():
             self.spontaneous_source = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_ratelearning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
             self.spontaneous_dest = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_ratelearning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
 
             self.causal_source = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_dest = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
 
         elif self.mode == 'dot':
             self.spontaneous_source_0 = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
             self.spontaneous_source_1 = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
             self.spontaneous_source_2 = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
 
             self.spontaneous_dest_0 = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
             self.spontaneous_dest_1 = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
             self.spontaneous_dest_2 = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.spontaneous_learning_rate,
+                    regularisation_rate=self.spontaneous_regularisation_rate
                 )
 
             self.causal_excitor_source_alpha = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitor_source_beta = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitor_source_weight = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
 
             self.causal_excitor_dest_alpha = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitor_dest_beta = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitor_dest_weight = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
 
             self.causal_excitee_source_alpha = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitee_source_beta = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitee_source_weight = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
 
             self.causal_excitee_dest_alpha = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitee_dest_beta = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
             self.causal_excitee_dest_weight = \
                 NodeEmbedding(
                     dimension=dimension,
-                    learning_rate=self.learning_rate,
-                    regularisation_rate=self.regularisation_rate
+                    learning_rate=self.causal_learning_rate,
+                    regularisation_rate=self.causal_regularisation_rate
                 )
         else:
             raise ValueError(
