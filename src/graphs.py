@@ -32,9 +32,7 @@ class DynamicAccountingGraph():
                  causal_learning_rate=0.01,
                  causal_regularisation_rate=10**(-6),
                  spontaneous_learning_rate=0.001,
-                 spontaneous_regularisation_rate=10**(-5),
-                 debug_mode=False, debug_edges_to_monitor=[],
-                 debug_monitor_excitement=False):
+                 spontaneous_regularisation_rate=10**(-5)):
         """Initialise the class
 
         Args:
@@ -45,15 +43,13 @@ class DynamicAccountingGraph():
                 values from embeddings. Can either be 'matrix' or 'dot'.
                 Defaults to 'matrix'.
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.001.
+                optimisation of causal parameters. Defaults to 0.01.
             causal_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of causal parameters. Defaults to 0.01.
+                L2 regularisation penalty of causal parameters. Defaults to 0.000001.
             spontaneous_learning_rate (float, optional): The learning rate for the
                 optimisation of spontaneous parameters. Defaults to 0.001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 0.01.
-            debug_mode (bool, optional): Whether to output details of the
-                calculations to a debug file. Defaults to False.
+                L2 regularisation penalty of spontaneous parameters. Defaults to 0.00001.
         """
         self.time = 0
         self.epoch = 0
@@ -204,78 +200,6 @@ class DynamicAccountingGraph():
         # Create an attribute to store gradients and values
         # for the gradient ascent algorithm
         self.gradient_log = dict()
-
-        # Set up debug mode
-        self.debug_mode = debug_mode
-        if self.debug_mode:
-            self.debug_log = {}
-            self.debug_edges_to_monitor = debug_edges_to_monitor
-            self.debug_monitor_excitement = debug_monitor_excitement
-
-    def add_to_debug_log(self, attribute, value, edges):
-        """Add an entry in the debug log
-
-        Args:
-            attribute (str): The name of the information being saved
-            value (any): The information being saved
-            edges (list): List of tuples (i,j) for relevant edges
-        """
-
-        if any(edge in self.debug_edges_to_monitor for edge in edges) or edges == []:
-            time_identifier = (self.epoch, self.time)
-
-            if time_identifier not in self.debug_log:
-                self.debug_log[time_identifier] = {}
-
-            if attribute in self.debug_log[time_identifier]:
-                raise ValueError(f'Attribute {attribute} is already recorded '
-                                f'for epoch {self.epoch}, time {self.time}.')
-            else:
-                self.debug_log[time_identifier][attribute] = value
-
-    def print_debug_log(self, file_path):
-        """Save the debug log to a CSV file
-
-        Args:
-            file_path (str): File path for the CSV file
-        """
-
-        # Find all the attribute across all time
-        all_attributes = set()
-        for time_identifier, datapoints in self.debug_log.items():
-            for attribute in datapoints:
-                all_attributes.add(attribute)
-
-        # Back fill missing attributes with 'None'
-        new_datapoints = {}
-        for time_identifier, datapoints in self.debug_log.items():
-            new_datapoints[time_identifier] = set()
-            for attribute in all_attributes:
-                if attribute not in datapoints:
-                    new_datapoints[time_identifier].add(attribute)
-        for time_identifier, missing_attributes in new_datapoints.items():
-            for attribute in missing_attributes:
-                self.debug_log[time_identifier][attribute] = None
-
-        # Output to a CSV file
-        with open(file_path, 'w', newline='') as csvfile:
-            # Create the CSV writer
-            writer = csv.writer(csvfile)
-
-            # Write the headings
-            writer.writerow(['Epoch', 'Time']+list(all_attributes))
-
-            # Add one row for each time step
-            for time_identifier, datapoints in self.debug_log.items():
-                # Get the time details from the identifier
-                epoch, time = time_identifier
-
-                # Add the logged data itself
-                new_row = [epoch, time] + \
-                    [datapoints[attribute] for attribute in all_attributes]
-
-                # Save it to the CSV file
-                writer.writerow(new_row)
 
     def find_excitors(self):
         """Find any pairs of edges which will excite each
@@ -523,18 +447,6 @@ class DynamicAccountingGraph():
         balance_i = self.nodes[i].balance
         balance_j = self.nodes[j].balance
 
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Balance of node {i} (for edge {i},{j})',
-                balance_i,
-                edges=[(i,j)])
-            if i != j:
-                self.add_to_debug_log(
-                    f'Balance of node {j} (for edge {i},{j})',
-                    balance_i,
-                    edges=[(i,j)])
-
         # Store the balances for the gradient algorithm
         self.gradient_log['source_balance'] = balance_i
         self.gradient_log['dest_balance'] = balance_j
@@ -584,25 +496,6 @@ class DynamicAccountingGraph():
             balance_i * linear_output_1 + \
             balance_j * linear_output_2
 
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Linear output 0 (for edge {i},{j})',
-                linear_output_0,
-                edges=[(i, j)])
-            self.add_to_debug_log(
-                f'Linear output 1 (for edge {i},{j})',
-                linear_output_1,
-                edges=[(i, j)])
-            self.add_to_debug_log(
-                f'Linear output 2 (for edge {i},{j})',
-                linear_output_2,
-                edges=[(i, j)])
-            self.add_to_debug_log(
-                f'Full linear output (for edge {i},{j})',
-                full_linear_output,
-                edges=[(i, j)])
-
         # Store the linear output for the gradient algorithm
         self.gradient_log['baseline_linear_value'] = \
             full_linear_output
@@ -638,13 +531,6 @@ class DynamicAccountingGraph():
             # set a low constant probability across all edges
             intensity = 0.00001
 
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Baseline intensity of edge {i}, {j}',
-                intensity,
-                edges=[(i, j)])
-
         # For each 'excite' that exists for this edge,
         # increase the intensity accordingly
         nodes = (i, j)
@@ -656,16 +542,6 @@ class DynamicAccountingGraph():
                 excite.probability
                 for excite in self.current_excitees[nodes]
                 if not excite.dormant
-                )
-
-            # Add to debug log
-            if self.debug_mode and self.debug_monitor_excitement:
-                self.add_to_debug_log(
-                    f'Excitors of edge {i}, {j}',
-                    [excite.excitor_nodes
-                    for excite in self.current_excitees[nodes]
-                    if not excite.dormant],
-                    edges=[(i,j)]
                 )
 
             # Record all the necessary values for the gradient
@@ -726,13 +602,6 @@ class DynamicAccountingGraph():
         # algorithm
         self.gradient_log['sum_Intensity'] = intensity
 
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Total intensity for edge {i}, {j}',
-                intensity,
-                edges=[(i,j)]
-            )
-
         return intensity
 
     def edge_probability(self, i, j, count,
@@ -767,13 +636,6 @@ class DynamicAccountingGraph():
             mu=self.edge_intensity(
                 i, j, spontaneous_on=spontaneous_on)
         )
-
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Probability of edge {i}, {j}',
-                probability,
-                edges=[(i,j)])
 
         # Record the probability for gradient ascent
         self.gradient_log['P'] = probability
@@ -811,13 +673,6 @@ class DynamicAccountingGraph():
                 else:
                     count = 0
 
-                # Add to debug log
-                if self.debug_mode:
-                    self.add_to_debug_log(
-                        f'Count of edge {i}, {j}',
-                        count,
-                        edges=[(i,j)])
-
                 # Take the log of the probability of
                 # that edge occurring that number of
                 # times, and add to the running total
@@ -831,20 +686,6 @@ class DynamicAccountingGraph():
                     )
                 )
                 total_log_probability += log_probability
-
-                # Add to debug log
-                if self.debug_mode:
-                    self.add_to_debug_log(
-                        f'Log probability of edge {i}, {j}',
-                        log_probability,
-                        edges=[(i,j)])
-
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                'Total log probability',
-                total_log_probability,
-                edges=[])
 
         return total_log_probability
 
@@ -1015,81 +856,6 @@ class DynamicAccountingGraph():
                     delBaselineComparer_delMatrix
                 )
             )
-
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Inverse probability (edge {k}, {l})',
-                inverse_probability,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delP_delIntensity (edge {k}, {l})',
-                delP_delIntensity,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delIntensity_delAlpha (edge {k}, {l})',
-                delIntensity_delAlpha,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delIntensity_delBeta (edge {k}, {l})',
-                delIntensity_delBeta,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delIntensity_delWeight (edge {k}, {l})',
-                delIntensity_delWeight,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'baseline_linear_value (edge {k}, {l})',
-                baseline_linear_value,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineIntensity_delZero (edge {k}, {l})',
-                delBaselineIntensity_delZero,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'source_balance (edge {k}, {l})',
-                source_balance,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineIntensity_delOne (edge {k}, {l})',
-                delBaselineIntensity_delOne,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'dest_balance (edge {k}, {l})',
-                dest_balance,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineIntensity_delTwo (edge {k}, {l})',
-                delBaselineIntensity_delTwo,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delZero_delK (edge {k}, {l})',
-                delZero_delK,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delZero_delL (edge {k}, {l})',
-                delZero_delL,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delOne_delK (edge {k}, {l})',
-                delOne_delK,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delOne_delL (edge {k}, {l})',
-                delOne_delL,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delTwo_delK (edge {k}, {l})',
-                delZero_delL,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delTwo_delL (edge {k}, {l})',
-                delOne_delK,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineComparer_delMatrix (edge {k}, {l})',
-                delBaselineComparer_delMatrix,
-                edges=[(k,l)])
 
         for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
             # Get linear values from the calculations of the
@@ -1289,81 +1055,6 @@ class DynamicAccountingGraph():
                 delBetaComparerdelMatrix
             )
 
-            # Add to debug log
-            if self.debug_mode and self.debug_monitor_excitement:
-                self.add_to_debug_log(
-                    f'lin_val_alpha (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    lin_val_alpha,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'lin_val_beta (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    lin_val_beta,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'lin_val_weight (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    lin_val_weight,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delI,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delI,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delI,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delJ,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delJ,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delJ,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delK,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delK,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delK,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delL,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delL,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delL,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlphaComparerdelMatrix (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlphaComparerdelMatrix,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBetaComparerdelMatrix (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBetaComparerdelMatrix,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeightComparerdelMatrix (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeightComparerdelMatrix,
-                    edges=[(i,j), (k,l)])
-
         # Reset the calculations cache
         self.gradient_log = dict()
 
@@ -1529,77 +1220,6 @@ class DynamicAccountingGraph():
         excitee_kl_alpha = self.edge_embedder.embed_edge(e_k_alpha, e_l_alpha)
         excitee_kl_beta = self.edge_embedder.embed_edge(e_k_beta, e_l_beta)
         excitee_kl_weight = self.edge_embedder.embed_edge(e_k_weight, e_l_weight)
-
-        # Add to debug log
-        if self.debug_mode:
-            self.add_to_debug_log(
-                f'Inverse probability (edge {k}, {l})',
-                inverse_probability,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delP_delIntensity (edge {k}, {l})',
-                delP_delIntensity,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delIntensity_delAlpha (edge {k}, {l})',
-                delIntensity_delAlpha,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delIntensity_delBeta (edge {k}, {l})',
-                delIntensity_delBeta,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delIntensity_delWeight (edge {k}, {l})',
-                delIntensity_delWeight,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'baseline_linear_value (edge {k}, {l})',
-                baseline_linear_value,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineIntensity_delZero (edge {k}, {l})',
-                delBaselineIntensity_delZero,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'source_balance (edge {k}, {l})',
-                source_balance,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineIntensity_delOne (edge {k}, {l})',
-                delBaselineIntensity_delOne,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'dest_balance (edge {k}, {l})',
-                dest_balance,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delBaselineIntensity_delTwo (edge {k}, {l})',
-                delBaselineIntensity_delTwo,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delZero_delK (edge {k}, {l})',
-                delZero_delK,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delZero_delL (edge {k}, {l})',
-                delZero_delL,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delOne_delK (edge {k}, {l})',
-                delOne_delK,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delOne_delL (edge {k}, {l})',
-                delOne_delL,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delTwo_delK (edge {k}, {l})',
-                delZero_delL,
-                edges=[(k,l)])
-            self.add_to_debug_log(
-                f'delTwo_delL (edge {k}, {l})',
-                delOne_delK,
-                edges=[(k,l)])
 
         for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
             # Get linear values from the calculations of the
@@ -1785,69 +1405,6 @@ class DynamicAccountingGraph():
                     delWeight_delL
                 )
             )
-
-            # Add to debug log
-            if self.debug_mode and self.debug_monitor_excitement:
-                self.add_to_debug_log(
-                    f'lin_val_alpha (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    lin_val_alpha,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'lin_val_beta (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    lin_val_beta,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'lin_val_weight (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    lin_val_weight,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delI,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delI,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delI (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delI,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delJ,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delJ,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delJ (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delJ,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delK,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delK,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delK (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delK,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delAlpha_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delAlpha_delL,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delBeta_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delBeta_delL,
-                    edges=[(i,j), (k,l)])
-                self.add_to_debug_log(
-                    f'delWeight_delL (edge: {k}, {l} - excitee {excite_index}: {i}, {j})',
-                    delWeight_delL,
-                    edges=[(i,j), (k,l)])
 
         # Reset the calculations cache
         self.gradient_log = dict()
