@@ -116,7 +116,7 @@ class DynamicAccountingGraph():
         # for the gradient ascent algorithm
         self.gradient_log = dict()
 
-    #@profile
+    @profile
     def find_excitors(self):
         """Find any pairs of edges which will excite each
         other based on the weight of the corresponding
@@ -310,7 +310,7 @@ class DynamicAccountingGraph():
                 )
             )
 
-    #@profile
+    @profile
     def edge_baseline(self, i, j, min_intensity=0.000001):
         """The baseline intensity for edges i->j based
         on the nodes' relationship and the respective
@@ -368,7 +368,7 @@ class DynamicAccountingGraph():
         # Make it positive
         return log_exp_function(full_linear_output) + min_intensity
 
-    #@profile
+    @profile
     def edge_intensity(self, i, j, spontaneous_on=True):
         """Get the total intensity for a particular edge
 
@@ -555,7 +555,7 @@ class DynamicAccountingGraph():
 
         return total_log_probability
 
-    #@profile
+    @profile
     def calculate_derivatives(self):
         """Calculate an element of the derivatives of the log likelihood
         of the edges occuring in the frequencies that they did on each
@@ -598,6 +598,8 @@ class DynamicAccountingGraph():
             )
             for excite_index, time in enumerate(self.gradient_log['times'])
         ]
+
+        inverse_probability_delP_delIntensity = inverse_probability * delP_delIntensity
 
         # Get the indices of the nodes in the excitee edge
         k = self.gradient_log['k']
@@ -670,38 +672,38 @@ class DynamicAccountingGraph():
 
             # - Apply the updates
             node_k.spontaneous_source_0.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delZero *
                     delZero_delK
                 )
             )
             node_k.spontaneous_source_1.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delOne *
                     delOne_delK
                 )
             )
             node_k.spontaneous_source_2.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delTwo *
                     delTwo_delK
                 )
             )
 
             node_l.spontaneous_dest_0.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delZero *
                     delZero_delL
                 )
             )
             node_l.spontaneous_dest_1.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delOne *
                     delOne_delL
                 )
             )
             node_l.spontaneous_dest_2.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delTwo *
                     delTwo_delL
                 )
@@ -829,19 +831,19 @@ class DynamicAccountingGraph():
             # Apply the gradient updates
             # Node i
             node_i.causal_excitor_source_alpha.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delI
                 )
             )
             node_i.causal_excitor_source_beta.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delI
                 )
             )
             node_i.causal_excitor_source_weight.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delI
                 )
@@ -849,19 +851,19 @@ class DynamicAccountingGraph():
 
             # Node j
             node_j.causal_excitor_dest_alpha.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delJ
                 )
             )
             node_j.causal_excitor_dest_beta.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delJ
                 )
             )
             node_j.causal_excitor_dest_weight.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delJ
                 )
@@ -869,19 +871,19 @@ class DynamicAccountingGraph():
 
             # Node k
             node_k.causal_excitee_source_alpha.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delK
                 )
             )
             node_k.causal_excitee_source_beta.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delK
                 )
             )
             node_k.causal_excitee_source_weight.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delK
                 )
@@ -889,19 +891,19 @@ class DynamicAccountingGraph():
 
             # Node l
             node_l.causal_excitee_dest_alpha.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delL
                 )
             )
             node_l.causal_excitee_dest_beta.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delL
                 )
             )
             node_l.causal_excitee_dest_weight.add_gradient_update(
-                inverse_probability * delP_delIntensity * (
+                inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delL
                 )

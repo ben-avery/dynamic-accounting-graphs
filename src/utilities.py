@@ -3,6 +3,7 @@ which are useful elsewhere in the code
 """
 import math
 import numpy as np
+import functools
 
 
 def discrete_weibull_pmf(x, alpha, beta):
@@ -31,6 +32,7 @@ def discrete_weibull_pmf(x, alpha, beta):
         - part_weibull(x+1, alpha, beta)
 
 
+@functools.lru_cache(maxsize=128, typed=False)
 def part_weibull(x, alpha, beta):
     """A helper function giving the expression
     that occurs multiple times in the discrete
@@ -98,7 +100,7 @@ def calc_delP_delIntensity(count, sum_Intensity):
         )*np.exp(-sum_Intensity)
 
 
-#@profile
+@profile
 def calc_delIntensity_delAlpha(time, alpha, beta, weight):
     """A partial derivative of the intensity by
     the alpha parameter of a Weibull distribution
@@ -257,6 +259,7 @@ def calc_delCausalDotproduct_delParam(
         log_exp_deriv_multiplier(linear_value) * (node_embedding*edge_embedding)
 
 
+@functools.lru_cache(maxsize=128, typed=False)
 def log_exp_function(linear_value):
     """A helper function which gives the smooth, continuous
     function that ensures parameters are positive.
@@ -283,6 +286,7 @@ def log_exp_function(linear_value):
         return np.log(linear_value + 1) + 1
 
 
+@functools.lru_cache(maxsize=128, typed=False)
 def log_exp_deriv_multiplier(linear_value):
     """A helper function which gives the partial derivative
     from the smooth, continuous function that ensures the

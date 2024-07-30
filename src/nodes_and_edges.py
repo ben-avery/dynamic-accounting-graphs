@@ -425,7 +425,7 @@ class EdgeComparer():
             # linear function is required.
             self.last_linear_value = None
 
-    #@profile
+    @profile
     def compare_embeddings(self, e_i, e_j):
         """Return the dot product of the two embeddings. If
         self.positive_output is set, this is then passed through
