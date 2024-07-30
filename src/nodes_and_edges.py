@@ -440,7 +440,7 @@ class EdgeComparer():
         """
 
         # Calculate the linear part of the function
-        linear_value = e_i.T @ e_j
+        linear_value = e_i @ e_j
 
         if self.positive_output:
             # Cache this value for the gradient-ascent algorithm
