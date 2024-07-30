@@ -98,6 +98,7 @@ def calc_delP_delIntensity(count, sum_Intensity):
         )*np.exp(-sum_Intensity)
 
 
+#@profile
 def calc_delIntensity_delAlpha(time, alpha, beta, weight):
     """A partial derivative of the intensity by
     the alpha parameter of a Weibull distribution
@@ -183,114 +184,6 @@ def calc_delIntensity_delWeight(time, alpha, beta):
     return discrete_weibull_pmf(time, alpha, beta)
 
 
-def calc_delComparer_delI(linear_value, matrix, e_kl, node_dimension):
-    """A partial derivative of the Weibull parameters by
-    the components of the source node of the excitor edge
-
-    Args:
-        linear_value (float): The value of the parameter before
-            being passed through the smooth, continuous function
-            to ensure it is positive
-        matrix (np.array): The matrix from the linear function
-        e_kl (np.array): The edge embedding of the excitee edge
-        node_dimension (int): The dimension of the node embeddings
-            (half of the edge embedding dimension)
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return \
-        log_exp_deriv_multiplier(linear_value) * \
-        (matrix[:node_dimension,:] @ e_kl)
-
-
-def calc_delComparer_delJ(linear_value, matrix, e_kl, node_dimension):
-    """A partial derivative of the Weibull parameters by
-    the components of the destination node of the excitor edge
-
-    Args:
-        linear_value (float): The value of the parameter before
-            being passed through the smooth, continuous function
-            to ensure it is positive
-        matrix (np.array): The matrix from the linear function
-        e_kl (np.array): The edge embedding of the excitee edge
-        node_dimension (int): The dimension of the node embeddings
-            (half of the edge embedding dimension)
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return \
-        log_exp_deriv_multiplier(linear_value) * \
-        (matrix[node_dimension:node_dimension*2,:] @ e_kl)
-
-
-def calc_delComparer_delK(linear_value, matrix, e_ij, node_dimension):
-    """A partial derivative of the Weibull parameters by
-    the components of the source node of the excitee edge
-
-    Args:
-        linear_value (float): The value of the parameter before
-            being passed through the smooth, continuous function
-            to ensure it is positive
-        matrix (np.array): The matrix from the linear function
-        e_ij (np.array): The edge embedding of the excitor edge
-        node_dimension (int): The dimension of the node embeddings
-            (half of the edge embedding dimension)
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return \
-        log_exp_deriv_multiplier(linear_value) * \
-        (e_ij @ matrix[:,:node_dimension])
-
-
-def calc_delComparer_delL(linear_value, matrix, e_ij, node_dimension):
-    """A partial derivative of the Weibull parameters by
-    the components of the destination node of the excitee edge
-
-    Args:
-        linear_value (float): The value of the parameter before
-            being passed through the smooth, continuous function
-            to ensure it is positive
-        matrix (np.array): The matrix from the linear function
-        e_ij (np.array): The edge embedding of the excitor edge
-        node_dimension (int): The dimension of the node embeddings
-            (half of the edge embedding dimension)
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return \
-        log_exp_deriv_multiplier(linear_value) * \
-        (e_ij @ matrix[:,node_dimension:node_dimension*2])
-
-
-def calc_delComparer_delMatrix(linear_value, e_ij, e_kl):
-    """A partial derivative of the Weibull parameters by
-    the components of the matrix from the linear function
-
-    Args:
-        linear_value (float): The value of the parameter before
-            being passed through the smooth, continuous function
-            to ensure it is positive
-        e_ij (np.array): The edge embedding of the excitor edge
-        e_kl (np.array): The edge embedding of the excitee edge
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return \
-        log_exp_deriv_multiplier(linear_value) * \
-        (e_ij.reshape((e_ij.size, 1)) * e_kl)
-
-
 def calc_delBaselineIntensity_delZero(linear_value):
     """A partial derivative of the baseline intensity by
     the first linear parameter
@@ -330,52 +223,6 @@ def calc_delBaselineIntensity_delTwo(linear_value, dest_balance):
         float: The partial derivative
     """
     return log_exp_deriv_multiplier(linear_value) * dest_balance
-
-
-def calc_delBaselineComparer_delK(matrix, y_l):
-    """A partial derivative of the baseline linear coefficients
-    by the source node embedding
-
-    Args:
-        matrix (np.array): The matrix from the linear function
-        y_l (np.array): The node embedding of the destination node
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return matrix @ y_l
-
-
-def calc_delBaselineComparer_delL(matrix, y_k):
-    """A partial derivative of the baseline linear coefficients
-    by the destination node embedding
-
-    Args:
-        matrix (np.array): The matrix from the linear function
-        y_k (np.array): The node embedding of the source node
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return y_k @ matrix
-
-
-def calc_delBaselineComparer_delMatrix(y_k, y_l):
-    """A partial derivative of the baseline linear coefficients
-    by the matrix components
-
-    Args:
-        y_k (np.array): The node embedding of the source node
-        y_l (np.array): The node embedding of the destination node
-
-    Returns:
-        float: The partial derivative
-    """
-
-    return \
-        y_k.reshape((y_k.size, 1)) * y_l
 
 
 def calc_delBaselineDotproduct_delParam(parameter):
