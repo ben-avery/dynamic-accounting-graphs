@@ -135,6 +135,10 @@ class DynamicAccountingGraph():
             r_i = self.nodes[excitor_i].causal_excitor_source_weight.value
 
             for excitor_j in range(self.count_nodes):
+                if excitor_i == excitor_j:
+                    # Don't allow self-loops
+                    continue
+
                 # Get the node embedding
                 r_j = self.nodes[excitor_j].causal_excitor_dest_weight.value
 
@@ -149,6 +153,10 @@ class DynamicAccountingGraph():
                     e_k = self.nodes[excitee_k].causal_excitee_source_weight.value
 
                     for excitee_l in range(self.count_nodes):
+                        if excitee_k == excitee_l:
+                            # Don't allow self-loops
+                            continue
+
                         # Get the node embedding
                         e_l = self.nodes[excitee_l].causal_excitee_dest_weight.value
 
@@ -243,6 +251,10 @@ class DynamicAccountingGraph():
             s_2_i = self.nodes[i].spontaneous_source_2.value
 
             for j in range(self.count_nodes):
+                if i == j:
+                    # Don't allow self-loops
+                    continue
+
                 # Get the embeddings for node j
                 s_0_j = self.nodes[j].spontaneous_dest_0.value
                 s_1_j = self.nodes[j].spontaneous_dest_1.value
@@ -556,6 +568,10 @@ class DynamicAccountingGraph():
         total_log_probability = 0
         for i in range(self.count_nodes):
             for j in range(self.count_nodes):
+                if i == j:
+                    # Don't allow self-loops
+                    continue
+
                 # Count how many times (if any) that
                 # edge has occurred
                 if (i, j) in self.new_edges:
