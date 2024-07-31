@@ -70,6 +70,7 @@ class Node():
         self.spontaneous_source_0 = \
             NodeEmbedding(
                 dimension=dimension,
+                spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -77,6 +78,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.001,
+                spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -84,6 +86,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.001,
+                spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -91,6 +94,7 @@ class Node():
         self.spontaneous_dest_0 = \
             NodeEmbedding(
                 dimension=dimension,
+                spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -98,6 +102,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.001,
+                spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -105,6 +110,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.001,
+                spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -113,6 +119,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=3,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
@@ -120,6 +127,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=10,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
@@ -127,6 +135,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.5,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -135,6 +144,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=3,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
@@ -142,6 +152,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=10,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
@@ -149,6 +160,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.5,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -157,6 +169,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=3,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
@@ -164,6 +177,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=10,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
@@ -171,6 +185,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.5,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -179,6 +194,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=3,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
@@ -186,6 +202,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=10,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
@@ -193,6 +210,7 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 initialisation_scaling=0.5,
+                spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -348,7 +366,7 @@ class NodeEmbedding():
     """A class to contain the source and destination node
     embedding for a particular node
     """
-    def __init__(self, dimension, initialisation_scaling=1,
+    def __init__(self, dimension, initialisation_scaling=1, spontaneous=True,
                  learning_rate=0.001, regularisation_rate=0.01):
         """Initialise the class
 
@@ -358,6 +376,9 @@ class NodeEmbedding():
                 initialisation so that the dot product of two such embeddings
                 has an expected value equal to initialisation_scaling.
                 Defaults to 1.
+            spontaneous (bool, optional): Whether the node is spontaneous or
+                causal (for use in initialisation scaling).
+                Defaults to True.
             learning_rate (float, optional): The learning rate for the
                 gradient ascent algorithm. Defaults to 0.001.
             regularisation_rate (float, optional): The weight towards the
@@ -370,7 +391,10 @@ class NodeEmbedding():
         self.regularisation_rate = regularisation_rate
 
         # Initialise the embeddings randomly
-        max_value = 2*np.sqrt(initialisation_scaling/self.dimension)
+        if spontaneous:
+            max_value = 2*np.sqrt(initialisation_scaling/self.dimension)
+        else:
+            max_value = 2*((initialisation_scaling/self.dimension)**0.25)
         self.value = np.random.uniform(0, max_value, self.dimension)
 
         # Create attributes to track gradient updates
