@@ -21,7 +21,8 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 causal_learning_rate=0.01,
+                 causal_learning_rate=0.0001,
+                 causal_learning_boost=100,
                  alpha_regularisation_rate=10**(-7),
                  beta_regularisation_rate=10**(-8),
                  weight_regularisation_rate=10**(-3),
@@ -34,7 +35,11 @@ class DynamicAccountingGraph():
                 for name, balance, number and mapping)
             node_dimension (int): The dimension for the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.01.
+                optimisation of causal parameters. Defaults to 0.0001.
+            causal_learning_boost (float, optional): Multiple to boost the causal
+                learning rate by during the training of only the causal part
+                of the model (i.e. when the spontaneous part of the model is
+                deactivated). Defaults to 100.
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
@@ -50,6 +55,8 @@ class DynamicAccountingGraph():
         self.epoch = 0
 
         self.causal_learning_rate = causal_learning_rate
+        self.causal_learning_boost = causal_learning_boost
+
         self.alpha_regularisation_rate = alpha_regularisation_rate
         self.beta_regularisation_rate = beta_regularisation_rate
         self.weight_regularisation_rate = weight_regularisation_rate
@@ -66,6 +73,7 @@ class DynamicAccountingGraph():
                 opening_balance=account.balance,
                 dimension=node_dimension,
                 causal_learning_rate=self.causal_learning_rate,
+                causal_learning_boost=self.causal_learning_boost,
                 alpha_regularisation_rate=self.alpha_regularisation_rate,
                 beta_regularisation_rate=self.beta_regularisation_rate,
                 weight_regularisation_rate=self.weight_regularisation_rate,
@@ -132,7 +140,7 @@ class DynamicAccountingGraph():
         # for the gradient ascent algorithm
         self.gradient_log = dict()
 
-    @profile
+    #@profile
     def find_excitors(self):
         """Find any pairs of edges which will excite each
         other based on the weight of the corresponding
@@ -376,7 +384,7 @@ class DynamicAccountingGraph():
                 )
             )
 
-    @profile
+    #@profile
     def edge_baseline(self, i, j, min_intensity=0.000001):
         """The baseline intensity for edges i->j based
         on the nodes' relationship and the respective
@@ -415,7 +423,7 @@ class DynamicAccountingGraph():
         # Make it positive
         return log_exp_function(full_linear_output) + min_intensity
 
-    @profile
+    #@profile
     def edge_intensity(self, i, j, spontaneous_on=True):
         """Get the total intensity for a particular edge
 
@@ -606,7 +614,7 @@ class DynamicAccountingGraph():
 
         return total_log_probability
 
-    @profile
+    #@profile
     def calculate_derivatives(self):
         """Calculate an element of the derivatives of the log likelihood
         of the edges occuring in the frequencies that they did on each

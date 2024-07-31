@@ -100,7 +100,7 @@ def calc_delP_delIntensity(count, sum_Intensity):
         )*np.exp(-sum_Intensity)
 
 
-@profile
+#@profile
 def calc_delIntensity_delAlpha(time, alpha, beta, weight):
     """A partial derivative of the intensity by
     the alpha parameter of a Weibull distribution

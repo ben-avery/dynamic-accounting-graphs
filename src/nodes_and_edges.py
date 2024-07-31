@@ -10,7 +10,8 @@ class Node():
     learning functions
     """
     def __init__(self, name, opening_balance, dimension,
-                 causal_learning_rate=0.01,
+                 causal_learning_rate=0.0001,
+                 causal_learning_boost=100,
                  alpha_regularisation_rate=10**(-7),
                  beta_regularisation_rate=10**(-8),
                  weight_regularisation_rate=10**(-3),
@@ -25,7 +26,11 @@ class Node():
                 associated account at the start of the period
             dimension (int): The dimension of the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.01.
+                optimisation of causal parameters. Defaults to 0.0001.
+            causal_learning_boost (float, optional): Multiple to boost the causal
+                learning rate by during the training of only the causal part
+                of the model (i.e. when the spontaneous part of the model is
+                deactivated). Defaults to 100.
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
@@ -52,6 +57,8 @@ class Node():
         self.meta_data = meta_data
 
         self.causal_learning_rate = causal_learning_rate
+        self.causal_learning_boost = causal_learning_boost
+
         self.alpha_regularisation_rate = alpha_regularisation_rate
         self.beta_regularisation_rate = beta_regularisation_rate
         self.weight_regularisation_rate = weight_regularisation_rate
@@ -243,6 +250,8 @@ class Node():
 
         # Update the embeddings
         if spontaneous_on:
+            causal_boost = 1
+
             self.spontaneous_source_0.apply_gradient_updates()
             self.spontaneous_source_1.apply_gradient_updates()
             self.spontaneous_source_2.apply_gradient_updates()
@@ -251,6 +260,8 @@ class Node():
             self.spontaneous_dest_1.apply_gradient_updates()
             self.spontaneous_dest_2.apply_gradient_updates()
         else:
+            causal_boost = self.causal_learning_boost
+
             self.spontaneous_source_0.clear_gradient_updates()
             self.spontaneous_source_1.clear_gradient_updates()
             self.spontaneous_source_2.clear_gradient_updates()
@@ -259,21 +270,45 @@ class Node():
             self.spontaneous_dest_1.clear_gradient_updates()
             self.spontaneous_dest_2.clear_gradient_updates()
 
-        self.causal_excitor_source_alpha.apply_gradient_updates()
-        self.causal_excitor_source_beta.apply_gradient_updates()
-        self.causal_excitor_source_weight.apply_gradient_updates()
+        self.causal_excitor_source_alpha.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitor_source_beta.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitor_source_weight.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
 
-        self.causal_excitor_dest_alpha.apply_gradient_updates()
-        self.causal_excitor_dest_beta.apply_gradient_updates()
-        self.causal_excitor_dest_weight.apply_gradient_updates()
+        self.causal_excitor_dest_alpha.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitor_dest_beta.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitor_dest_weight.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
 
-        self.causal_excitee_source_alpha.apply_gradient_updates()
-        self.causal_excitee_source_beta.apply_gradient_updates()
-        self.causal_excitee_source_weight.apply_gradient_updates()
+        self.causal_excitee_source_alpha.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitee_source_beta.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitee_source_weight.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
 
-        self.causal_excitee_dest_alpha.apply_gradient_updates()
-        self.causal_excitee_dest_beta.apply_gradient_updates()
-        self.causal_excitee_dest_weight.apply_gradient_updates()
+        self.causal_excitee_dest_alpha.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitee_dest_beta.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
+        self.causal_excitee_dest_weight.apply_gradient_updates(
+            learning_boost=causal_boost
+        )
 
     def clear_gradient_updates(self):
         """Remove any pending gradient updates
@@ -361,9 +396,16 @@ class NodeEmbedding():
         # Record the cumulative change to be applied later
         self.pending_updates += gradient_update
 
-    def apply_gradient_updates(self):
+    def apply_gradient_updates(self, learning_boost=1):
         """At the end of an epoch, update the node embedding
         based on the cached updates
+
+        Args:
+            learning_boost (float, optional): Multiply the learning
+                rate by this, to allow the rate of learning to be
+                boosted or supressed.
+                Defaults to 1.
+
         """
 
         # Increase the number of learning steps
@@ -381,7 +423,7 @@ class NodeEmbedding():
                 prev_first_moment=self.prev_first_moment,
                 prev_second_moment=self.prev_second_moment,
                 prev_parameters=self.value,
-                step_size=self.learning_rate
+                step_size=self.learning_rate*learning_boost
             )
 
         # Apply regularisation penalty
@@ -455,7 +497,7 @@ class EdgeComparer():
             # linear function is required.
             self.last_linear_value = None
 
-    @profile
+    #@profile
     def compare_embeddings(self, e_i, e_j):
         """Return the dot product of the two embeddings. If
         self.positive_output is set, this is then passed through
