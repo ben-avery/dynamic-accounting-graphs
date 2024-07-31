@@ -426,9 +426,6 @@ class NodeEmbedding():
                 step_size=self.learning_rate*learning_boost
             )
 
-        # Apply regularisation penalty
-        self.value -= regularisation
-
         # Reset the cache
         self.pending_updates = np.zeros(self.dimension)
 
