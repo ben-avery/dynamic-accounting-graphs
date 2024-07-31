@@ -69,12 +69,14 @@ class Node():
         self.spontaneous_source_1 = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.001,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
         self.spontaneous_source_2 = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.001,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -88,12 +90,14 @@ class Node():
         self.spontaneous_dest_1 = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.001,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
         self.spontaneous_dest_2 = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.001,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -101,18 +105,21 @@ class Node():
         self.causal_excitor_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=3,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitor_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=10,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitor_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.5,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -120,18 +127,21 @@ class Node():
         self.causal_excitor_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=3,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitor_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=10,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitor_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.5,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -139,18 +149,21 @@ class Node():
         self.causal_excitee_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=3,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitee_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=10,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitee_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.5,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -158,18 +171,21 @@ class Node():
         self.causal_excitee_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=3,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitee_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=10,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitee_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=0.5,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -297,12 +313,16 @@ class NodeEmbedding():
     """A class to contain the source and destination node
     embedding for a particular node
     """
-    def __init__(self, dimension,
+    def __init__(self, dimension, initialisation_scaling=1,
                  learning_rate=0.001, regularisation_rate=0.01):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings.
+            initialisation_scaling (float, optional): Scale the random
+                initialisation so that the dot product of two such embeddings
+                has an expected value equal to initialisation_scaling.
+                Defaults to 1.
             learning_rate (float, optional): The learning rate for the
                 gradient ascent algorithm. Defaults to 0.001.
             regularisation_rate (float, optional): The weight towards the
@@ -315,7 +335,7 @@ class NodeEmbedding():
         self.regularisation_rate = regularisation_rate
 
         # Initialise the embeddings randomly
-        max_value = 2*np.sqrt(1/self.dimension)
+        max_value = 2*np.sqrt(initialisation_scaling/self.dimension)
         self.value = np.random.uniform(0, max_value, self.dimension)
 
         # Create attributes to track gradient updates
