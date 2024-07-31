@@ -112,6 +112,11 @@ class DynamicAccountingGraph():
         # currently excited by previous edges
         self.current_excitees = dict()
 
+        # Store the linear parts of the spontaneous intensity
+        # calculation
+        self.spontaneous_linear_parts = dict()
+        self.calculate_spontaneous_coefficients()
+
         # Create an attribute to store gradients and values
         # for the gradient ascent algorithm
         self.gradient_log = dict()
@@ -223,6 +228,44 @@ class DynamicAccountingGraph():
                                         ((weibull_weight, weibull_alpha, weibull_beta),
                                          (lin_val_weight, lin_val_alpha, lin_val_beta))
 
+    def calculate_spontaneous_coefficients(self):
+        """Cache the linear coefficients for the spontaneous
+        intensity calculations for each edge
+        """
+
+        # Clear the cache
+        self.spontaneous_linear_parts = dict()
+
+        for i in range(self.count_nodes):
+            # Get the embeddings for node i
+            s_0_i = self.nodes[i].spontaneous_source_0.value
+            s_1_i = self.nodes[i].spontaneous_source_1.value
+            s_2_i = self.nodes[i].spontaneous_source_2.value
+
+            for j in range(self.count_nodes):
+                # Get the embeddings for node j
+                s_0_j = self.nodes[j].spontaneous_dest_0.value
+                s_1_j = self.nodes[j].spontaneous_dest_1.value
+                s_2_j = self.nodes[j].spontaneous_dest_2.value
+
+                # Calculate the linear coefficients
+                linear_output_0 = \
+                    self.spontaneous_comparer.compare_embeddings(
+                        s_0_i, s_0_j
+                    )
+                linear_output_1 = \
+                    self.spontaneous_comparer.compare_embeddings(
+                        s_1_i, s_1_j
+                    )
+                linear_output_2 = \
+                    self.spontaneous_comparer.compare_embeddings(
+                        s_2_i, s_2_j
+                    )
+
+                # Cache the result
+                self.spontaneous_linear_parts[(i, j)] = \
+                    (linear_output_0, linear_output_1, linear_output_2)
+
     def increment_time(self):
         """Advance to the next day
         """
@@ -333,28 +376,9 @@ class DynamicAccountingGraph():
         self.gradient_log['source_balance'] = balance_i
         self.gradient_log['dest_balance'] = balance_j
 
-        # Calculate the linear output
-
-        # Get the embeddings
-        s_0_i = self.nodes[i].spontaneous_source_0.value
-        s_0_j = self.nodes[j].spontaneous_dest_0.value
-        s_1_i = self.nodes[i].spontaneous_source_1.value
-        s_1_j = self.nodes[j].spontaneous_dest_1.value
-        s_2_i = self.nodes[i].spontaneous_source_2.value
-        s_2_j = self.nodes[j].spontaneous_dest_2.value
-
-        linear_output_0 = \
-            self.spontaneous_comparer.compare_embeddings(
-                s_0_i, s_0_j
-            )
-        linear_output_1 = \
-            self.spontaneous_comparer.compare_embeddings(
-                s_1_i, s_1_j
-            )
-        linear_output_2 = \
-            self.spontaneous_comparer.compare_embeddings(
-                s_2_i, s_2_j
-            )
+        # Get the linear output from the cache
+        linear_output_0, linear_output_1, linear_output_2 = \
+            self.spontaneous_linear_parts[(i, j)]
 
         full_linear_output = \
             linear_output_0 + \
@@ -966,3 +990,7 @@ class DynamicAccountingGraph():
         # excite each other under the updated
         # model parameters
         self.find_excitors()
+
+        # Update the cache for the linear parts of the
+        # spontaneous intensity calculations
+        self.calculate_spontaneous_coefficients()
