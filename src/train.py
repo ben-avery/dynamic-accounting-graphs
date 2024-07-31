@@ -1,6 +1,7 @@
 """Module for training a Dynamic Accounting Graph
 """
 
+from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -48,45 +49,89 @@ def train(graph, edges_by_day, last_day, iterations=1500,
         iterator = range(iterations)
 
     spontaneous_on = False
-    for iteration in iterator:
-        log_probability = 0
+    with ProcessPoolExecutor() as executor:
+        for iteration in iterator:
+            log_probability = 0
+            all_gradient_updates = []
 
-        # Activate the spontaneous part of the model at the requested epoch number
-        if not spontaneous_on and iteration >= spontaneous_learning_startpoint:
-            spontaneous_on = True
+            # Activate the spontaneous part of the model at the requested epoch number
+            if not spontaneous_on and iteration >= spontaneous_learning_startpoint:
+                spontaneous_on = True
 
-        for day, edges in edges_by_day.items():
-            # Move the graph onto the next day, until a new
-            # day that contains some edges
-            while graph.time < day:
+            for day, edges in edges_by_day.items():
+                # Move the graph onto the next day, until a new
+                # day that contains some edges
+                while graph.time < day:
+                    # Calculate the probability of the current day
+                    day_log_probability, gradient_updates = \
+                        graph.day_log_probability(
+                            gradient_executor=executor,
+                            spontaneous_on=spontaneous_on
+                        )
+                    log_probability += day_log_probability
+
+                    # Add the gradient updates to the list
+                    all_gradient_updates.extend(gradient_updates)
+
+                    # Clear any completed gradient updates
+                    while len(all_gradient_updates) > 0 and all_gradient_updates[0].done():
+                        gradient_update_results = \
+                            all_gradient_updates.pop(0).result()
+                        for node_type, node_index, gradient_update in gradient_update_results:
+                            graph.add_gradient_update(
+                                node_type, node_index, gradient_update
+                            )
+
+                    # Move the graph onto the next day
+                    graph.increment_time()
+
+                # Add all of this day's edges to the graph
+                for i, j, edge_weight in edges:
+                    graph.add_edge(i, j, edge_weight)
+
+            # Any days at the end of the period with no edges
+            # also need their probabilities calculated
+            while graph.time <= last_day:
                 # Calculate the probability of the current day
-                log_probability += graph.day_log_probability(
-                    spontaneous_on=spontaneous_on
-                )
+                day_log_probability, gradient_updates = \
+                    graph.day_log_probability(
+                        gradient_executor=executor,
+                        spontaneous_on=spontaneous_on
+                    )
+                log_probability += day_log_probability
+
+                # Add the gradient updates to the list
+                all_gradient_updates.extend(gradient_updates)
+
+                # Clear any completed gradient updates
+                while len(all_gradient_updates) > 0 and all_gradient_updates[0].done():
+                    gradient_update_results = \
+                        all_gradient_updates.pop(0).result()
+                    for node_type, node_index, gradient_update in gradient_update_results:
+                        graph.add_gradient_update(
+                            node_type, node_index, gradient_update
+                        )
 
                 # Move the graph onto the next day
                 graph.increment_time()
 
-            # Add all of this day's edges to the graph
-            for i, j, edge_weight in edges:
-                graph.add_edge(i, j, edge_weight)
+            # Record the total log likelihood for this epoch
+            log_likelihoods[iteration] = log_probability
 
-        # Any days at the end of the period with no edges
-        # also need their probabilities calculated
-        while graph.time <= last_day:
-            # Calculate the probability of the current day
-            log_probability += graph.day_log_probability()
+            # Make sure all the gradients are calculated
+            while len(all_gradient_updates) > 0:
+                gradient_update_results = \
+                    all_gradient_updates.pop(0).result()
 
-            # Move the graph onto the next day
-            graph.increment_time()
+                for node_type, node_index, gradient_update in gradient_update_results:
+                    graph.add_gradient_update(
+                        node_type, node_index, gradient_update
+                    )
 
-        # Record the total log likelihood for this epoch
-        log_likelihoods[iteration] = log_probability
-
-        # Update the parameters using gradient ascent, and
-        # then remove the edges and excitation ready for
-        # the next epoch
-        graph.reset(spontaneous_on=spontaneous_on)
+            # Update the parameters using gradient ascent, and
+            # then remove the edges and excitation ready for
+            # the next epoch
+            graph.reset(spontaneous_on=spontaneous_on)
 
     if plot_log_likelihood:
         # Plot log likelihood

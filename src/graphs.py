@@ -136,10 +136,6 @@ class DynamicAccountingGraph():
         self.spontaneous_linear_parts = dict()
         self.calculate_spontaneous_coefficients()
 
-        # Create an attribute to store gradients and values
-        # for the gradient ascent algorithm
-        self.gradient_log = dict()
-
     #@profile
     def find_excitors(self):
         """Find any pairs of edges which will excite each
@@ -385,7 +381,8 @@ class DynamicAccountingGraph():
             )
 
     #@profile
-    def edge_baseline(self, i, j, min_intensity=0.000001):
+    def edge_baseline(self, i, j, gradient_log,
+                      min_intensity=0.000001):
         """The baseline intensity for edges i->j based
         on the nodes' relationship and the respective
         cumulative balances.
@@ -393,6 +390,8 @@ class DynamicAccountingGraph():
         Args:
             i (int): The index of the source node
             j (int): The index of the destination node
+            gradient_log (dict): A record of all the sub-calculations
+                needed for calculating partial derivatives
             min_intensity (str, optional): Prevents the
                 intensity being zero. Default 0.000001
 
@@ -404,8 +403,8 @@ class DynamicAccountingGraph():
         balance_j = self.nodes[j].balance
 
         # Store the balances for the gradient algorithm
-        self.gradient_log['source_balance'] = balance_i
-        self.gradient_log['dest_balance'] = balance_j
+        gradient_log['source_balance'] = balance_i
+        gradient_log['dest_balance'] = balance_j
 
         # Get the linear output from the cache
         linear_output_0, linear_output_1, linear_output_2 = \
@@ -417,19 +416,21 @@ class DynamicAccountingGraph():
             balance_j * linear_output_2
 
         # Store the linear output for the gradient algorithm
-        self.gradient_log['baseline_linear_value'] = \
+        gradient_log['baseline_linear_value'] = \
             full_linear_output
 
         # Make it positive
         return log_exp_function(full_linear_output) + min_intensity
 
     #@profile
-    def edge_intensity(self, i, j, spontaneous_on=True):
+    def edge_intensity(self, i, j, gradient_log, spontaneous_on=True):
         """Get the total intensity for a particular edge
 
         Args:
             i (int): Index of the source node
             j (int): Index of the destination node
+            gradient_log (dict): A record of all the sub-calculations
+                needed for calculating partial derivatives
             spontaneous_on (bool, optional): Whether the spontaneous part
                 of the model is enabled. Recommended to have off for the
                 early part of the model learning, to allow the causal part
@@ -442,11 +443,14 @@ class DynamicAccountingGraph():
 
         # Record whether the spontaneous part of the model
         # is active
-        self.gradient_log['spontaneous_on'] = spontaneous_on
+        gradient_log['spontaneous_on'] = spontaneous_on
 
         # Start with the baseline intensity of the edge
         if spontaneous_on:
-            intensity = self.edge_baseline(i, j)
+            intensity = self.edge_baseline(
+                i, j,
+                gradient_log=gradient_log
+                )
         else:
             # If the spontaneous part of the model is disabled,
             # set a low constant probability across all edges
@@ -469,16 +473,16 @@ class DynamicAccountingGraph():
             # ascent algorithm
 
             # Record the Weibull parameters
-            self.gradient_log['alphas'] = \
+            gradient_log['alphas'] = \
                 [excite.weibull_alpha
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
-            self.gradient_log['betas'] = \
+            gradient_log['betas'] = \
                 [excite.weibull_beta
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
             # Record the weighting of the Weibull distribution
-            self.gradient_log['weights'] = \
+            gradient_log['weights'] = \
                 [excite.weibull_weight
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
@@ -486,46 +490,47 @@ class DynamicAccountingGraph():
             # Record the linear value from the parameter
             # calculations (before passed through the smooth,
             # continuous function mapping R->R+)
-            self.gradient_log['lin_alphas'] = \
+            gradient_log['lin_alphas'] = \
                 [excite.lin_val_alpha
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
-            self.gradient_log['lin_betas'] = \
+            gradient_log['lin_betas'] = \
                 [excite.lin_val_beta
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
-            self.gradient_log['lin_weights'] = \
+            gradient_log['lin_weights'] = \
                 [excite.lin_val_weight
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
 
             # Record the original time that the excitor edge
             # occurred
-            self.gradient_log['times'] = \
+            gradient_log['times'] = \
                 [excite.time
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
 
             # Record the nodes in the excitor edge
-            self.gradient_log['excitor_nodes'] = \
+            gradient_log['excitor_nodes'] = \
                 [excite.excitor_nodes
                  for excite in self.current_excitees[nodes]
                  if not excite.dormant]
         else:
             # Record empty lists if there are no 'excites'
-            self.gradient_log['alphas'] = []
-            self.gradient_log['betas'] = []
-            self.gradient_log['weights'] = []
-            self.gradient_log['times'] = []
-            self.gradient_log['excitor_nodes'] = []
+            gradient_log['alphas'] = []
+            gradient_log['betas'] = []
+            gradient_log['weights'] = []
+            gradient_log['times'] = []
+            gradient_log['excitor_nodes'] = []
 
         # Record the total intensity for the gradient ascent
         # algorithm
-        self.gradient_log['sum_Intensity'] = intensity
+        gradient_log['sum_Intensity'] = intensity
 
         return intensity
 
     def edge_probability(self, i, j, count,
+                         gradient_executor,
                          spontaneous_on=True):
         """The probability that a particular edge occured a
         given number of times on this day.
@@ -535,6 +540,8 @@ class DynamicAccountingGraph():
             j (int): Index of the destination node
             count (int): The number of times that this edge
                 occurred on this day
+            gradient_executor (concurrent.futures.Executor): A multiprocessing
+                executor for calculating gradients in parallel.
             spontaneous_on (bool, optional): Whether the spontaneous part
                 of the model is enabled. Recommended to have off for the
                 early part of the model learning, to allow the causal part
@@ -546,33 +553,39 @@ class DynamicAccountingGraph():
         """
 
         # Record the parameters for gradient ascent
-        self.gradient_log['k'] = i
-        self.gradient_log['l'] = j
-        self.gradient_log['count'] = count
+        gradient_log = {'k': i, 'l': j, 'count': count}
 
         # Calculate the probability using a Poisson
         # distribution with the intensity as the mean
         probability = poisson.pmf(
             k=count,
             mu=self.edge_intensity(
-                i, j, spontaneous_on=spontaneous_on)
+                i, j,
+                gradient_log=gradient_log,
+                spontaneous_on=spontaneous_on
+            )
         )
 
         # Record the probability for gradient ascent
-        self.gradient_log['P'] = probability
+        gradient_log['P'] = probability
 
         # Calculate partial derivatives to create
         # pending parameter updates (to be applied when
         # the entire period has been added to the graph)
-        self.calculate_derivatives()
+        gradient_updates = gradient_executor.submit(
+            self.calculate_derivatives,
+            gradient_log
+        )
 
-        return probability
+        return probability, gradient_updates
 
-    def day_log_probability(self, spontaneous_on=True):
+    def day_log_probability(self, gradient_executor, spontaneous_on=True):
         """The log probability of all the edges that have
         occurred on this day
 
         Args:
+            gradient_executor (concurrent.futures.Executor): A multiprocessing
+                executor for calculating gradients in parallel.
             spontaneous_on (bool, optional): Whether the spontaneous part
                 of the model is enabled. Recommended to have off for the
                 early part of the model learning, to allow the causal part
@@ -585,6 +598,7 @@ class DynamicAccountingGraph():
 
         # Iterate through all possible edges
         total_log_probability = 0
+        all_gradient_updates = []
         for i in range(self.count_nodes):
             for j in range(self.count_nodes):
                 if i == j:
@@ -601,85 +615,97 @@ class DynamicAccountingGraph():
                 # Take the log of the probability of
                 # that edge occurring that number of
                 # times, and add to the running total
-                log_probability = log(
-                    max(
-                        0.00001,
-                        self.edge_probability(
-                            i, j, count,
-                            spontaneous_on=spontaneous_on
-                        )
+                edge_probability, gradient_updates = \
+                    self.edge_probability(
+                        i, j, count,
+                        gradient_executor=gradient_executor,
+                        spontaneous_on=spontaneous_on
                     )
+
+                log_probability = log(
+                    max(0.00001, edge_probability)
                 )
                 total_log_probability += log_probability
 
-        return total_log_probability
+                # Record the pending gradient updates
+                all_gradient_updates.append(gradient_updates)
+
+        return total_log_probability, all_gradient_updates
 
     #@profile
-    def calculate_derivatives(self):
+    def calculate_derivatives(self, gradient_log):
         """Calculate an element of the derivatives of the log likelihood
         of the edges occuring in the frequencies that they did on each
         day in the period (with the current values of all the parameters),
         with respect to each parameter
+
+        Args:
+            gradient_log (dict): A record of all the sub-calculations
+                needed for calculating partial derivatives
+
         """
 
+        # Log the partial derivatives
+        gradient_updates = []
+
         # Calculate the inverse of the probability
-        inverse_probability = 1 / max(0.00001, self.gradient_log['P'])
+        inverse_probability = 1 / max(0.00001, gradient_log['P'])
 
         # Calculate partial derivatives that are
         # independent of the excitor edge.
         delP_delIntensity = \
             calc_delP_delIntensity(
-                self.gradient_log['count'],
-                self.gradient_log['sum_Intensity'])
+                gradient_log['count'],
+                gradient_log['sum_Intensity'])
         delIntensity_delAlpha = [
             calc_delIntensity_delAlpha(
                 time,
-                self.gradient_log['alphas'][excite_index],
-                self.gradient_log['betas'][excite_index],
-                self.gradient_log['weights'][excite_index]
+                gradient_log['alphas'][excite_index],
+                gradient_log['betas'][excite_index],
+                gradient_log['weights'][excite_index]
             )
-            for excite_index, time in enumerate(self.gradient_log['times'])
+            for excite_index, time in enumerate(gradient_log['times'])
         ]
         delIntensity_delBeta = [
             calc_delIntensity_delBeta(
                 time,
-                self.gradient_log['alphas'][excite_index],
-                self.gradient_log['betas'][excite_index],
-                self.gradient_log['weights'][excite_index]
+                gradient_log['alphas'][excite_index],
+                gradient_log['betas'][excite_index],
+                gradient_log['weights'][excite_index]
             )
-            for excite_index, time in enumerate(self.gradient_log['times'])
+            for excite_index, time in enumerate(gradient_log['times'])
         ]
         delIntensity_delWeight = [
             calc_delIntensity_delWeight(
                 time,
-                self.gradient_log['alphas'][excite_index],
-                self.gradient_log['betas'][excite_index]
+                gradient_log['alphas'][excite_index],
+                gradient_log['betas'][excite_index]
             )
-            for excite_index, time in enumerate(self.gradient_log['times'])
+            for excite_index, time in enumerate(gradient_log['times'])
         ]
 
         inverse_probability_delP_delIntensity = inverse_probability * delP_delIntensity
 
         # Get the indices of the nodes in the excitee edge
-        k = self.gradient_log['k']
-        l = self.gradient_log['l']
+        k = gradient_log['k']
+        l = gradient_log['l']
 
         # Get the nodes
         node_k = self.nodes[k]
         node_l = self.nodes[l]
 
-        if self.gradient_log['spontaneous_on']:
+        if gradient_log['spontaneous_on']:
             # Calculate the spontaneous intensity gradient updates
             # - Calculate the partial derivative
             baseline_linear_value = \
-                self.gradient_log['baseline_linear_value']
+                gradient_log['baseline_linear_value']
             delBaselineIntensity_delZero = \
                 calc_delBaselineIntensity_delZero(
                     baseline_linear_value
                 )
 
             source_balance = \
-                self.gradient_log['source_balance']
+                gradient_log['source_balance']
             delBaselineIntensity_delOne = \
                 calc_delBaselineIntensity_delOne(
                     baseline_linear_value,
@@ -687,7 +713,7 @@ class DynamicAccountingGraph():
                 )
 
             dest_balance = \
-                self.gradient_log['dest_balance']
+                gradient_log['dest_balance']
             delBaselineIntensity_delTwo = \
                 calc_delBaselineIntensity_delTwo(
                     baseline_linear_value,
@@ -730,43 +756,49 @@ class DynamicAccountingGraph():
                 )
 
             # - Apply the updates
-            node_k.spontaneous_source_0.add_gradient_update(
+            gradient_updates.append((
+                0, k,
                 inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delZero *
                     delZero_delK
                 )
-            )
-            node_k.spontaneous_source_1.add_gradient_update(
+            ))
+            gradient_updates.append((
+                1, k,
                 inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delOne *
                     delOne_delK
                 )
-            )
-            node_k.spontaneous_source_2.add_gradient_update(
+            ))
+            gradient_updates.append((
+                2, k,
                 inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delTwo *
                     delTwo_delK
                 )
-            )
+            ))
 
-            node_l.spontaneous_dest_0.add_gradient_update(
+            gradient_updates.append((
+                3, l,
                 inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delZero *
                     delZero_delL
                 )
-            )
-            node_l.spontaneous_dest_1.add_gradient_update(
+            ))
+            gradient_updates.append((
+                4, l,
                 inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delOne *
                     delOne_delL
                 )
-            )
-            node_l.spontaneous_dest_2.add_gradient_update(
+            ))
+            gradient_updates.append((
+                5, l,
                 inverse_probability_delP_delIntensity * (
                     delBaselineIntensity_delTwo *
                     delTwo_delL
                 )
-            )
+            ))
 
         # Get the causal node embeddings for the excitee
         e_k_alpha = node_k.causal_excitee_source_alpha.value
@@ -783,12 +815,12 @@ class DynamicAccountingGraph():
         excitee_kl_beta = self.edge_embedder.embed_edge(e_k_beta, e_l_beta)
         excitee_kl_weight = self.edge_embedder.embed_edge(e_k_weight, e_l_weight)
 
-        for excite_index, (i, j) in enumerate(self.gradient_log['excitor_nodes']):
+        for excite_index, (i, j) in enumerate(gradient_log['excitor_nodes']):
             # Get linear values from the calculations of the
             # Comparer objects
-            lin_val_alpha = self.gradient_log['lin_alphas'][excite_index]
-            lin_val_beta = self.gradient_log['lin_betas'][excite_index]
-            lin_val_weight = self.gradient_log['lin_weights'][excite_index]
+            lin_val_alpha = gradient_log['lin_alphas'][excite_index]
+            lin_val_beta = gradient_log['lin_betas'][excite_index]
+            lin_val_weight = gradient_log['lin_weights'][excite_index]
 
             # Get the nodes for the excitor edge
             node_i = self.nodes[i]
@@ -889,87 +921,146 @@ class DynamicAccountingGraph():
 
             # Apply the gradient updates
             # Node i
-            node_i.causal_excitor_source_alpha.add_gradient_update(
+            gradient_updates.append((
+                6, i,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delI
                 )
-            )
-            node_i.causal_excitor_source_beta.add_gradient_update(
+            ))
+            gradient_updates.append((
+                7, i,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delI
                 )
-            )
-            node_i.causal_excitor_source_weight.add_gradient_update(
+            ))
+            gradient_updates.append((
+                8, i,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delI
                 )
-            )
+            ))
 
             # Node j
-            node_j.causal_excitor_dest_alpha.add_gradient_update(
+            gradient_updates.append((
+                9, j,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delJ
                 )
-            )
-            node_j.causal_excitor_dest_beta.add_gradient_update(
+            ))
+            gradient_updates.append((
+                10, j,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delJ
                 )
-            )
-            node_j.causal_excitor_dest_weight.add_gradient_update(
+            ))
+            gradient_updates.append((
+                11, j,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delJ
                 )
-            )
+            ))
 
             # Node k
-            node_k.causal_excitee_source_alpha.add_gradient_update(
+            gradient_updates.append((
+                12, k,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delK
                 )
-            )
-            node_k.causal_excitee_source_beta.add_gradient_update(
+            ))
+            gradient_updates.append((
+                13, k,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delK
                 )
-            )
-            node_k.causal_excitee_source_weight.add_gradient_update(
+            ))
+            gradient_updates.append((
+                14, k,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delK
                 )
-            )
+            ))
 
             # Node l
-            node_l.causal_excitee_dest_alpha.add_gradient_update(
+            gradient_updates.append((
+                15, l,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delAlpha[excite_index] *
                     delAlpha_delL
                 )
-            )
-            node_l.causal_excitee_dest_beta.add_gradient_update(
+            ))
+            gradient_updates.append((
+                16, l,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delBeta[excite_index] *
                     delBeta_delL
                 )
-            )
-            node_l.causal_excitee_dest_weight.add_gradient_update(
+            ))
+            gradient_updates.append((
+                17, l,
                 inverse_probability_delP_delIntensity * (
                     delIntensity_delWeight[excite_index] *
                     delWeight_delL
                 )
-            )
+            ))
 
-        # Reset the calculations cache
-        self.gradient_log = dict()
+        return gradient_updates
+
+    def add_gradient_update(self, node_type, node_index, gradient_update):
+        """Map the pending update to the appropriate embedding
+
+        Args:
+            node_type (int): Identify which embedding is being updated
+            node_index (int): Identify which node is being updated
+            gradient_update (np.array): The partial derivative
+        """
+
+        node = self.nodes[node_index]
+
+        if node_type == 0:
+            node.spontaneous_source_0.add_gradient_update(gradient_update)
+        elif node_type == 1:
+            node.spontaneous_source_1.add_gradient_update(gradient_update)
+        elif node_type == 2:
+            node.spontaneous_source_2.add_gradient_update(gradient_update)
+        elif node_type == 3:
+            node.spontaneous_dest_0.add_gradient_update(gradient_update)
+        elif node_type == 4:
+            node.spontaneous_dest_1.add_gradient_update(gradient_update)
+        elif node_type == 5:
+            node.spontaneous_dest_2.add_gradient_update(gradient_update)
+        elif node_type == 6:
+            node.causal_excitor_source_alpha.add_gradient_update(gradient_update)
+        elif node_type == 7:
+            node.causal_excitor_source_beta.add_gradient_update(gradient_update)
+        elif node_type == 8:
+            node.causal_excitor_source_weight.add_gradient_update(gradient_update)
+        elif node_type == 9:
+            node.causal_excitor_dest_alpha.add_gradient_update(gradient_update)
+        elif node_type == 10:
+            node.causal_excitor_dest_beta.add_gradient_update(gradient_update)
+        elif node_type == 11:
+            node.causal_excitor_dest_weight.add_gradient_update(gradient_update)
+        elif node_type == 12:
+            node.causal_excitee_source_alpha.add_gradient_update(gradient_update)
+        elif node_type == 13:
+            node.causal_excitee_source_beta.add_gradient_update(gradient_update)
+        elif node_type == 14:
+            node.causal_excitee_source_weight.add_gradient_update(gradient_update)
+        elif node_type == 15:
+            node.causal_excitee_dest_alpha.add_gradient_update(gradient_update)
+        elif node_type == 16:
+            node.causal_excitee_dest_beta.add_gradient_update(gradient_update)
+        elif node_type == 17:
+            node.causal_excitee_dest_weight.add_gradient_update(gradient_update)
 
     def apply_gradient_updates(self):
         """Take the pending gradient updates and
