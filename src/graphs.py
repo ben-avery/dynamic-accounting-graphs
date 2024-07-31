@@ -22,7 +22,9 @@ class DynamicAccountingGraph():
     """
     def __init__(self, accounts, node_dimension,
                  causal_learning_rate=0.01,
-                 causal_regularisation_rate=10**(-6),
+                 alpha_regularisation_rate=10**(-7),
+                 beta_regularisation_rate=10**(-8),
+                 weight_regularisation_rate=10**(-3),
                  spontaneous_learning_rate=0.001,
                  spontaneous_regularisation_rate=10**(-5)):
         """Initialise the class
@@ -33,18 +35,25 @@ class DynamicAccountingGraph():
             node_dimension (int): The dimension for the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
                 optimisation of causal parameters. Defaults to 0.01.
-            causal_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of causal parameters. Defaults to 0.000001.
+            alpha_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
+            beta_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-8).
+            weight_regularisation_rate  (float, optional): The weight towards the
+                L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
             spontaneous_learning_rate (float, optional): The learning rate for the
                 optimisation of spontaneous parameters. Defaults to 0.001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 0.00001.
+                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-5).
         """
         self.time = 0
         self.epoch = 0
 
         self.causal_learning_rate = causal_learning_rate
-        self.causal_regularisation_rate = causal_regularisation_rate
+        self.alpha_regularisation_rate = alpha_regularisation_rate
+        self.beta_regularisation_rate = beta_regularisation_rate
+        self.weight_regularisation_rate = weight_regularisation_rate
+
         self.spontaneous_learning_rate = spontaneous_learning_rate
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
@@ -57,7 +66,9 @@ class DynamicAccountingGraph():
                 opening_balance=account.balance,
                 dimension=node_dimension,
                 causal_learning_rate=self.causal_learning_rate,
-                causal_regularisation_rate=self.causal_regularisation_rate,
+                alpha_regularisation_rate=self.alpha_regularisation_rate,
+                beta_regularisation_rate=self.beta_regularisation_rate,
+                weight_regularisation_rate=self.weight_regularisation_rate,
                 spontaneous_learning_rate=self.spontaneous_learning_rate,
                 spontaneous_regularisation_rate=self.spontaneous_regularisation_rate,
                 meta_data={

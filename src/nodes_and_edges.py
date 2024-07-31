@@ -10,10 +10,12 @@ class Node():
     learning functions
     """
     def __init__(self, name, opening_balance, dimension,
-                 causal_learning_rate=0.001,
-                 causal_regularisation_rate=0.01,
+                 causal_learning_rate=0.01,
+                 alpha_regularisation_rate=10**(-7),
+                 beta_regularisation_rate=10**(-8),
+                 weight_regularisation_rate=10**(-3),
                  spontaneous_learning_rate=0.001,
-                 spontaneous_regularisation_rate=0.01,
+                 spontaneous_regularisation_rate=10**(-5),
                  meta_data=None):
         """Initialise the class
 
@@ -23,13 +25,17 @@ class Node():
                 associated account at the start of the period
             dimension (int): The dimension of the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.001.
-            causal_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of causal parameters. Defaults to 0.01.
+                optimisation of causal parameters. Defaults to 0.01.
+            alpha_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
+            beta_regularisation_rate (float, optional): The weight towards the
+                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-8).
+            weight_regularisation_rate  (float, optional): The weight towards the
+                L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
             spontaneous_learning_rate (float, optional): The learning rate for the
                 optimisation of spontaneous parameters. Defaults to 0.001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 0.01.
+                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-5).
             meta_data (dict, optional): A dictionary of other information
                 about a node which is irrelevant to the training. For example,
                 it may be useful for downstream applications to know the
@@ -44,8 +50,12 @@ class Node():
         self.pending_balance_changes = 0
         self.dimension = dimension
         self.meta_data = meta_data
+
         self.causal_learning_rate = causal_learning_rate
-        self.causal_regularisation_rate = causal_regularisation_rate
+        self.alpha_regularisation_rate = alpha_regularisation_rate
+        self.beta_regularisation_rate = beta_regularisation_rate
+        self.weight_regularisation_rate = weight_regularisation_rate
+
         self.spontaneous_learning_rate = spontaneous_learning_rate
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
@@ -92,76 +102,76 @@ class Node():
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitor_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitor_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.weight_regularisation_rate
             )
 
         self.causal_excitor_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitor_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitor_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.weight_regularisation_rate
             )
 
         self.causal_excitee_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitee_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitee_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.weight_regularisation_rate
             )
 
         self.causal_excitee_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitee_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitee_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
                 learning_rate=self.causal_learning_rate,
-                regularisation_rate=self.causal_regularisation_rate
+                regularisation_rate=self.weight_regularisation_rate
             )
 
     def increment_time(self):
