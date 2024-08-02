@@ -22,11 +22,11 @@ class DynamicAccountingGraph():
     """
     def __init__(self, accounts, node_dimension,
                  causal_learning_rate=0.001,
-                 causal_learning_boost=10,
+                 causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
                  beta_regularisation_rate=10**(-7),
-                 weight_regularisation_rate=10**(-3),
-                 spontaneous_learning_rate=0.0001,
+                 weight_regularisation_rate=5*(10**(-4)),
+                 spontaneous_learning_rate=0.00001,
                  spontaneous_regularisation_rate=10**(-7)):
         """Initialise the class
 
@@ -35,19 +35,19 @@ class DynamicAccountingGraph():
                 for name, balance, number and mapping)
             node_dimension (int): The dimension for the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.0001.
+                optimisation of causal parameters. Defaults to 0.001.
             causal_learning_boost (float, optional): Multiple to boost the causal
                 learning rate by during the training of only the causal part
                 of the model (i.e. when the spontaneous part of the model is
-                deactivated). Defaults to 100.
+                deactivated). Defaults to 1.
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-7).
             weight_regularisation_rate  (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
+                L2 regularisation penalty of Weibull weight parameters. Defaults to 5*(10**(-4)).
             spontaneous_learning_rate (float, optional): The learning rate for the
-                optimisation of spontaneous parameters. Defaults to 0.001.
+                optimisation of spontaneous parameters. Defaults to 0.00001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-7).
         """

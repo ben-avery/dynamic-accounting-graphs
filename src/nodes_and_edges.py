@@ -10,12 +10,12 @@ class Node():
     learning functions
     """
     def __init__(self, name, opening_balance, dimension,
-                 causal_learning_rate=0.0001,
-                 causal_learning_boost=100,
+                 causal_learning_rate=0.001,
+                 causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
                  beta_regularisation_rate=10**(-7),
-                 weight_regularisation_rate=10**(-3),
-                 spontaneous_learning_rate=0.001,
+                 weight_regularisation_rate=5*(10**(-4)),
+                 spontaneous_learning_rate=0.00001,
                  spontaneous_regularisation_rate=10**(-7),
                  meta_data=None):
         """Initialise the class
@@ -26,19 +26,19 @@ class Node():
                 associated account at the start of the period
             dimension (int): The dimension of the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.0001.
+                optimisation of causal parameters. Defaults to 0.001.
             causal_learning_boost (float, optional): Multiple to boost the causal
                 learning rate by during the training of only the causal part
                 of the model (i.e. when the spontaneous part of the model is
-                deactivated). Defaults to 100.
+                deactivated). Defaults to 1.
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-7).
             weight_regularisation_rate  (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
+                L2 regularisation penalty of Weibull weight parameters. Defaults to 5*(10**(-4)).
             spontaneous_learning_rate (float, optional): The learning rate for the
-                optimisation of spontaneous parameters. Defaults to 0.001.
+                optimisation of spontaneous parameters. Defaults to 0.00001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-7).
             meta_data (dict, optional): A dictionary of other information
@@ -70,6 +70,7 @@ class Node():
         self.spontaneous_source_0 = \
             NodeEmbedding(
                 dimension=dimension,
+                initialisation_scaling=1/3,
                 spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
@@ -77,7 +78,7 @@ class Node():
         self.spontaneous_source_1 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.001,
+                initialisation_scaling=0.001/3,
                 spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
@@ -85,7 +86,7 @@ class Node():
         self.spontaneous_source_2 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.001,
+                initialisation_scaling=0.001/3,
                 spontaneous=True,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
