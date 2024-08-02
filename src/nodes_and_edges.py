@@ -13,10 +13,10 @@ class Node():
                  causal_learning_rate=0.0001,
                  causal_learning_boost=100,
                  alpha_regularisation_rate=10**(-7),
-                 beta_regularisation_rate=10**(-8),
+                 beta_regularisation_rate=10**(-7),
                  weight_regularisation_rate=10**(-3),
                  spontaneous_learning_rate=0.001,
-                 spontaneous_regularisation_rate=10**(-5),
+                 spontaneous_regularisation_rate=10**(-7),
                  meta_data=None):
         """Initialise the class
 
@@ -34,13 +34,13 @@ class Node():
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-8).
+                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-7).
             weight_regularisation_rate  (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
             spontaneous_learning_rate (float, optional): The learning rate for the
                 optimisation of spontaneous parameters. Defaults to 0.001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-5).
+                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-7).
             meta_data (dict, optional): A dictionary of other information
                 about a node which is irrelevant to the training. For example,
                 it may be useful for downstream applications to know the
@@ -134,7 +134,7 @@ class Node():
         self.causal_excitor_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=100,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -159,7 +159,7 @@ class Node():
         self.causal_excitor_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=100,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -184,7 +184,7 @@ class Node():
         self.causal_excitee_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=100,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -209,7 +209,7 @@ class Node():
         self.causal_excitee_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=100,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -491,13 +491,13 @@ class EdgeComparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
-    def __init__(self, dimension, log_exp_scale=None, positive_output=True, min_at=0):
+    def __init__(self, dimension, log_scale_f=None, positive_output=True, min_at=0):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings
-            log_exp_scale (float, optional): The scale to apply to the smooth,
-                positive function (if positive_output is True).
+            log_scale (float): Shift the function by log_scale so
+                that f(0)=exp(log_scale), if positive_output is True.
                 Defaults to None.
             positive_output (bool, optional): Whether a function should
                 be applied to the output to ensure it is positive.
@@ -525,12 +525,12 @@ class EdgeComparer():
 
             # Record the scaling to be applied to the smooth,
             # positive function
-            if log_exp_scale is None:
+            if log_scale_f is None:
                 raise ValueError(
-                    'log_exp_scale must be provided if '
+                    'log_scale_f must be provided if '
                     'positive_output is True'
                 )
-            self.log_exp_scale = log_exp_scale
+            self.log_scale_f = log_scale_f
 
     #@profile
     def compare_embeddings(self, e_i, e_j):
@@ -555,6 +555,6 @@ class EdgeComparer():
 
             # Apply the piecewise function to make the output
             # certainly positive
-            return log_exp_function(linear_value, self.log_exp_scale) + self.min_at
+            return log_exp_function(linear_value, self.log_scale_f) + self.min_at
         else:
             return linear_value

@@ -21,13 +21,13 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 causal_learning_rate=0.0001,
-                 causal_learning_boost=100,
+                 causal_learning_rate=0.001,
+                 causal_learning_boost=10,
                  alpha_regularisation_rate=10**(-7),
-                 beta_regularisation_rate=10**(-8),
+                 beta_regularisation_rate=10**(-7),
                  weight_regularisation_rate=10**(-3),
-                 spontaneous_learning_rate=0.001,
-                 spontaneous_regularisation_rate=10**(-5)):
+                 spontaneous_learning_rate=0.0001,
+                 spontaneous_regularisation_rate=10**(-7)):
         """Initialise the class
 
         Args:
@@ -43,13 +43,13 @@ class DynamicAccountingGraph():
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-8).
+                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-7).
             weight_regularisation_rate  (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
             spontaneous_learning_rate (float, optional): The learning rate for the
                 optimisation of spontaneous parameters. Defaults to 0.001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-5).
+                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-7).
         """
         self.time = 0
         self.epoch = 0
@@ -66,6 +66,12 @@ class DynamicAccountingGraph():
 
         # Set the threshold below which excitement is seen as trivial
         self.excitement_threshold = 0.0001
+
+        # Set the scales for the smooth, positive functions
+        self.log_scale_spontaneous = log(self.excitement_threshold)
+        self.log_scale_alpha = 0
+        self.log_scale_beta = log(0.5)
+        self.log_scale_weight = log(self.excitement_threshold)
 
         # Create the nodes with random embeddings
         self.nodes = []
@@ -100,18 +106,18 @@ class DynamicAccountingGraph():
 
         self.causal_comparer_weight = EdgeComparer(
             dimension=self.node_dimension,
-            log_exp_scale=self.excitement_threshold,
+            log_scale_f=self.log_scale_weight,
             positive_output=True
         )
         self.causal_comparer_alpha = EdgeComparer(
             dimension=self.node_dimension,
-            log_exp_scale=1,
+            log_scale_f=self.log_scale_alpha,
             positive_output=True,
             min_at=0.5
         )
         self.causal_comparer_beta = EdgeComparer(
             dimension=self.node_dimension,
-            log_exp_scale=0.5,
+            log_scale_f=self.log_scale_beta,
             positive_output=True,
             min_at=1.0
         )
@@ -427,7 +433,7 @@ class DynamicAccountingGraph():
 
         # Make it positive
         return log_exp_function(
-            full_linear_output, scale=self.excitement_threshold
+            full_linear_output, log_scale=self.log_scale_spontaneous
             ) + min_intensity
 
     #@profile
@@ -683,7 +689,7 @@ class DynamicAccountingGraph():
             delBaselineIntensity_delZero = \
                 calc_delBaselineIntensity_delZero(
                     baseline_linear_value,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_spontaneous
                 )
 
             source_balance = \
@@ -692,7 +698,7 @@ class DynamicAccountingGraph():
                 calc_delBaselineIntensity_delOne(
                     baseline_linear_value,
                     source_balance,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_spontaneous
                 )
 
             dest_balance = \
@@ -701,7 +707,7 @@ class DynamicAccountingGraph():
                 calc_delBaselineIntensity_delTwo(
                     baseline_linear_value,
                     dest_balance,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_spontaneous
                 )
 
             s_k_0 = node_k.spontaneous_source_0.value
@@ -826,21 +832,21 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=r_j_alpha,
                     edge_embedding=excitee_kl_alpha,
-                    scale=1
+                    log_scale=self.log_scale_alpha
                 )
             delBeta_delI = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=r_j_beta,
                     edge_embedding=excitee_kl_beta,
-                    scale=0.5
+                    log_scale=self.log_scale_beta
                 )
             delWeight_delI = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=r_j_weight,
                     edge_embedding=excitee_kl_weight,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_weight
                 )
 
             delAlpha_delJ = \
@@ -848,21 +854,21 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=r_i_alpha,
                     edge_embedding=excitee_kl_alpha,
-                    scale=1
+                    log_scale=self.log_scale_alpha
                 )
             delBeta_delJ = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=r_i_beta,
                     edge_embedding=excitee_kl_beta,
-                    scale=0.5
+                    log_scale=self.log_scale_beta
                 )
             delWeight_delJ = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=r_i_weight,
                     edge_embedding=excitee_kl_weight,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_weight
                 )
 
             delAlpha_delK = \
@@ -870,21 +876,21 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=e_l_alpha,
                     edge_embedding=excitor_ij_alpha,
-                    scale=1
+                    log_scale=self.log_scale_alpha
                 )
             delBeta_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=e_l_beta,
                     edge_embedding=excitor_ij_beta,
-                    scale=0.5
+                    log_scale=self.log_scale_beta
                 )
             delWeight_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=e_l_weight,
                     edge_embedding=excitor_ij_weight,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_weight
                 )
 
             delAlpha_delL = \
@@ -892,21 +898,21 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=e_k_alpha,
                     edge_embedding=excitor_ij_alpha,
-                    scale=1
+                    log_scale=self.log_scale_alpha
                 )
             delBeta_delL = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=e_k_beta,
                     edge_embedding=excitor_ij_beta,
-                    scale=0.5
+                    log_scale=self.log_scale_beta
                 )
             delWeight_delL = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=e_k_weight,
                     edge_embedding=excitor_ij_weight,
-                    scale=self.excitement_threshold
+                    log_scale=self.log_scale_weight
                 )
 
             # Apply the gradient updates
