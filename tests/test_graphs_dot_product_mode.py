@@ -40,9 +40,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
         self.graph = graphs.DynamicAccountingGraph(
             accounts=[sales_account, debtors_account, bank_account],
-            node_dimension=4,
-            learning_rate=1,
-            mode='dot'
+            node_dimension=4
         )
 
     def reset_graph(self, edges):
@@ -845,11 +843,1169 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                     places=5
                 )
 
+        # Debtors ---------------------------------------------------------------------------------------
+
+        # Estimate the derivatives
+        # Debtors excitor source node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitor_source_alpha.value = \
+                debtors_r_i_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitor_source_alpha.value = \
+                debtors_r_i_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitor node I (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_r_i_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitor source node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitor_source_beta.value = \
+                debtors_r_i_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitor_source_beta.value = \
+                debtors_r_i_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitor node I (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_r_i_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitor source node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitor_source_weight.value = \
+                debtors_r_i_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitor_source_weight.value = \
+                debtors_r_i_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitor node I (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_r_i_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitor dest node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitor_dest_alpha.value = \
+                debtors_r_j_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitor_dest_alpha.value = \
+                debtors_r_j_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitor node J (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_r_j_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitor dest node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitor_dest_beta.value = \
+                debtors_r_j_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitor_dest_beta.value = \
+                debtors_r_j_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitor node J (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_r_j_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitor dest node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitor_dest_weight.value = \
+                debtors_r_j_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitor_dest_weight.value = \
+                debtors_r_j_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitor node J (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_r_j_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitee source node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitee_source_alpha.value = \
+                debtors_e_k_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitee_source_alpha.value = \
+                debtors_e_k_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitee node K (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_e_k_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitee source node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitee_source_beta.value = \
+                debtors_e_k_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitee_source_beta.value = \
+                debtors_e_k_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitee node K (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_e_k_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitee source node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitee_source_weight.value = \
+                debtors_e_k_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitee_source_weight.value = \
+                debtors_e_k_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitee node K (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_e_k_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitee dest node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitee_dest_alpha.value = \
+                debtors_e_l_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitee_dest_alpha.value = \
+                debtors_e_l_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitee node L (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_e_l_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitee dest node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitee_dest_beta.value = \
+                debtors_e_l_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitee_dest_beta.value = \
+                debtors_e_l_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitee node L (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_e_l_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors excitee dest node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].causal_excitee_dest_weight.value = \
+                debtors_e_l_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].causal_excitee_dest_weight.value = \
+                debtors_e_l_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors excitee node L (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_e_l_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors source node (spontaneous) zero
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].spontaneous_source_0.value = \
+                debtors_s_i_zero + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].spontaneous_source_0.value = \
+                debtors_s_i_zero
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors node I (spontaneous) zero, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_s_i_zero[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors source node (spontaneous) one
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].spontaneous_source_1.value = \
+                debtors_s_i_one + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].spontaneous_source_1.value = \
+                debtors_s_i_one
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors node I (spontaneous) one, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_s_i_one[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors source node (spontaneous) two
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].spontaneous_source_2.value = \
+                debtors_s_i_two + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].spontaneous_source_2.value = \
+                debtors_s_i_two
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors node I (spontaneous) two, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_s_i_two[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors dest node (spontaneous) zero
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].spontaneous_dest_0.value = \
+                debtors_s_j_zero + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].spontaneous_dest_0.value = \
+                debtors_s_j_zero
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors node J (spontaneous) zero, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_s_j_zero[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors dest node (spontaneous) one
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].spontaneous_dest_1.value = \
+                debtors_s_j_one + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].spontaneous_dest_1.value = \
+                debtors_s_j_one
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors node J (spontaneous) one, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_s_j_one[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Debtors dest node (spontaneous) two
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[1].spontaneous_dest_2.value = \
+                debtors_s_j_two + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[1].spontaneous_dest_2.value = \
+                debtors_s_j_two
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Debtors node J (spontaneous) two, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_debtors_s_j_two[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank ---------------------------------------------------------------------------------------
+
+        # Estimate the derivatives
+        # Bank excitor source node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitor_source_alpha.value = \
+                bank_r_i_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitor_source_alpha.value = \
+                bank_r_i_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitor node I (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_r_i_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitor source node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitor_source_beta.value = \
+                bank_r_i_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitor_source_beta.value = \
+                bank_r_i_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitor node I (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_r_i_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitor source node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitor_source_weight.value = \
+                bank_r_i_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitor_source_weight.value = \
+                bank_r_i_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitor node I (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_r_i_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitor dest node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitor_dest_alpha.value = \
+                bank_r_j_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitor_dest_alpha.value = \
+                bank_r_j_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitor node J (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_r_j_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitor dest node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitor_dest_beta.value = \
+                bank_r_j_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitor_dest_beta.value = \
+                bank_r_j_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitor node J (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_r_j_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitor dest node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitor_dest_weight.value = \
+                bank_r_j_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitor_dest_weight.value = \
+                bank_r_j_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitor node J (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_r_j_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitee source node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitee_source_alpha.value = \
+                bank_e_k_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitee_source_alpha.value = \
+                bank_e_k_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitee node K (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_e_k_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitee source node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitee_source_beta.value = \
+                bank_e_k_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitee_source_beta.value = \
+                bank_e_k_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitee node K (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_e_k_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitee source node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitee_source_weight.value = \
+                bank_e_k_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitee_source_weight.value = \
+                bank_e_k_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitee node K (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_e_k_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitee dest node (causal) alpha
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitee_dest_alpha.value = \
+                bank_e_l_alpha + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitee_dest_alpha.value = \
+                bank_e_l_alpha
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitee node L (causal) alpha, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_e_l_alpha[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitee dest node (causal) beta
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitee_dest_beta.value = \
+                bank_e_l_beta + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitee_dest_beta.value = \
+                bank_e_l_beta
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitee node L (causal) beta, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_e_l_beta[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank excitee dest node (causal) weight
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].causal_excitee_dest_weight.value = \
+                bank_e_l_weight + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].causal_excitee_dest_weight.value = \
+                bank_e_l_weight
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank excitee node L (causal) weight, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_e_l_weight[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank source node (spontaneous) zero
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].spontaneous_source_0.value = \
+                bank_s_i_zero + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].spontaneous_source_0.value = \
+                bank_s_i_zero
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank node I (spontaneous) zero, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_s_i_zero[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank source node (spontaneous) one
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].spontaneous_source_1.value = \
+                bank_s_i_one + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].spontaneous_source_1.value = \
+                bank_s_i_one
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank node I (spontaneous) one, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_s_i_one[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank source node (spontaneous) two
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].spontaneous_source_2.value = \
+                bank_s_i_two + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].spontaneous_source_2.value = \
+                bank_s_i_two
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank node I (spontaneous) two, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_s_i_two[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank dest node (spontaneous) zero
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].spontaneous_dest_0.value = \
+                bank_s_j_zero + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].spontaneous_dest_0.value = \
+                bank_s_j_zero
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank node J (spontaneous) zero, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_s_j_zero[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank dest node (spontaneous) one
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].spontaneous_dest_1.value = \
+                bank_s_j_one + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].spontaneous_dest_1.value = \
+                bank_s_j_one
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank node J (spontaneous) one, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_s_j_one[a],
+                    estimated_deriv,
+                    places=5
+                )
+
+        # Bank dest node (spontaneous) two
+        for a in range(node_dimension):
+            # Create a step in the appropriate dimension
+            increment = np.eye(1, node_dimension, a)[0]*epsilon
+
+            # Adjust the parameter accordingly
+            self.graph.nodes[2].spontaneous_dest_2.value = \
+                bank_s_j_two + increment
+
+            # Update the graph excitement based on these parameters
+            self.reset_graph(edges)
+
+            # Recalculate the function value
+            next_value = \
+                np.log(self.graph.edge_probability(
+                    i, j, count
+                ))
+
+            # Reset the parameter change
+            self.graph.nodes[2].spontaneous_dest_2.value = \
+                bank_s_j_two
+
+            # Estimate the partial derivative wrt this parameter
+            estimated_deriv = (next_value-base_value)/epsilon
+
+            with self.subTest(msg=f'Bank node J (spontaneous) two, dimension {a}'):
+                self.assertAlmostEqual(
+                    calc_deriv_bank_s_j_two[a],
+                    estimated_deriv,
+                    places=5
+                )
+
     def test_deriv(self):
         # Define edges
         edges = {}
 
-        # Choose the derivate
+        # Choose the derivative
         self.derivative_helper(
             0, 1, 2,
             edges=edges
@@ -861,7 +2017,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             0: [(0, 1, 10)]
         }
 
-        # Calculate the derivate
+        # Calculate the derivative
         self.derivative_helper(
             0, 1, 2,
             edges=edges
@@ -873,7 +2029,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             0: [(1, 2, 0.5)]
         }
 
-        # Calculate the derivate
+        # Calculate the derivative
         self.derivative_helper(
             0, 1, 2,
             edges=edges
@@ -885,7 +2041,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             0: [(0, 1, 10)]
         }
 
-        # Calculate the derivate
+        # Calculate the derivative
         self.derivative_helper(
             0, 2, 3,
             edges=edges
@@ -900,7 +2056,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
             3: []
         }
 
-        # Calculate the derivate
+        # Calculate the derivative
         self.derivative_helper(
             0, 1, 2,
             edges=edges

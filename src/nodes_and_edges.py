@@ -492,13 +492,13 @@ class EdgeComparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
-    def __init__(self, dimension, log_scale_f=None, positive_output=True, min_at=0):
+    def __init__(self, dimension, f_shift=None, positive_output=True, min_at=0):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings
-            log_scale (float): Shift the function by log_scale so
-                that f(0)=exp(log_scale), if positive_output is True.
+            f_shift (float): Shift the function by to achieve a certain
+                value at zero. (Only for positive_output=True).
                 Defaults to None.
             positive_output (bool, optional): Whether a function should
                 be applied to the output to ensure it is positive.
@@ -526,12 +526,12 @@ class EdgeComparer():
 
             # Record the scaling to be applied to the smooth,
             # positive function
-            if log_scale_f is None:
+            if f_shift is None:
                 raise ValueError(
-                    'log_scale_f must be provided if '
+                    'f_shift must be provided if '
                     'positive_output is True'
                 )
-            self.log_scale_f = log_scale_f
+            self.f_shift = f_shift
 
     #@profile
     def compare_embeddings(self, e_i, e_j):
@@ -556,6 +556,6 @@ class EdgeComparer():
 
             # Apply the piecewise function to make the output
             # certainly positive
-            return log_exp_function(linear_value, self.log_scale_f) + self.min_at
+            return log_exp_function(linear_value, self.f_shift) + self.min_at
         else:
             return linear_value
