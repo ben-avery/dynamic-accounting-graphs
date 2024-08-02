@@ -186,45 +186,48 @@ def calc_delIntensity_delWeight(time, alpha, beta):
     return discrete_weibull_pmf(time, alpha, beta)
 
 
-def calc_delBaselineIntensity_delZero(linear_value):
+def calc_delBaselineIntensity_delZero(linear_value, scale):
     """A partial derivative of the baseline intensity by
     the first linear parameter
 
     Args:
         linear_value (float): The linear part of the function
-
+        scale (float): The scale for the log_exp function.
+        
     Returns:
         float: The partial derivative
     """
-    return log_exp_deriv_multiplier(linear_value)
+    return log_exp_deriv_multiplier(linear_value, scale)
 
 
-def calc_delBaselineIntensity_delOne(linear_value, source_balance):
+def calc_delBaselineIntensity_delOne(linear_value, source_balance, scale):
     """A partial derivative of the baseline intensity by
     the second linear parameter
 
     Args:
         linear_value (float): The linear part of the function
         source_balance (float): The balance on the source node
+        scale (float): The scale for the log_exp function.
 
     Returns:
         float: The partial derivative
     """
-    return log_exp_deriv_multiplier(linear_value) * source_balance
+    return log_exp_deriv_multiplier(linear_value, scale) * source_balance
 
 
-def calc_delBaselineIntensity_delTwo(linear_value, dest_balance):
+def calc_delBaselineIntensity_delTwo(linear_value, dest_balance, scale):
     """A partial derivative of the baseline intensity by
     the third linear parameter
 
     Args:
         linear_value (float): The linear part of the function
         dest_balance (float): The balance on the source node
+        scale (float): The scale for the log_exp function.
 
     Returns:
         float: The partial derivative
     """
-    return log_exp_deriv_multiplier(linear_value) * dest_balance
+    return log_exp_deriv_multiplier(linear_value, scale) * dest_balance
 
 
 def calc_delBaselineDotproduct_delParam(parameter):
@@ -242,7 +245,7 @@ def calc_delBaselineDotproduct_delParam(parameter):
 
 
 def calc_delCausalDotproduct_delParam(
-        linear_value, node_embedding, edge_embedding):
+        linear_value, node_embedding, edge_embedding, scale):
     """A partial derivative of the causal parameters
     by the relevant embeddings
 
@@ -250,17 +253,18 @@ def calc_delCausalDotproduct_delParam(
         linear_value (float): The linear part of the function
         node_embedding (np.array): The node embedding
         edge_embedding (np.array): The edge embedding
+        scale (float): The scale for the log_exp function.
 
     Returns:
         np.array: The partial derivative
     """
 
     return \
-        log_exp_deriv_multiplier(linear_value) * (node_embedding*edge_embedding)
+        log_exp_deriv_multiplier(linear_value, scale) * (node_embedding*edge_embedding)
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def log_exp_function(linear_value):
+def log_exp_function(linear_value, scale):
     """A helper function which gives the smooth, continuous
     function that ensures parameters are positive.
 
@@ -268,6 +272,8 @@ def log_exp_function(linear_value):
         linear_value (float): The value of the parameter before
             being passed through the smooth, continuous function
             to ensure it is positive
+        scale (float): Multiply the output by this constant so
+            that f(0)=scale.
 
     Returns:
         float: The partial derivative of the smooth, continuous
@@ -280,14 +286,14 @@ def log_exp_function(linear_value):
         return 0
     elif linear_value < 0:
         # Exponential portion
-        return np.exp(linear_value)
+        return scale*np.exp(linear_value)
     else:
         # Logarithmic portion
-        return np.log(linear_value + 1) + 1
+        return scale*(np.log(linear_value + 1) + 1)
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def log_exp_deriv_multiplier(linear_value):
+def log_exp_deriv_multiplier(linear_value, scale):
     """A helper function which gives the partial derivative
     from the smooth, continuous function that ensures the
     Weibull parameters and weight are positive.
@@ -296,6 +302,8 @@ def log_exp_deriv_multiplier(linear_value):
         linear_value (float): The value of the parameter before
             being passed through the smooth, continuous function
             to ensure it is positive
+        scale (float): Multiply the output by this constant so
+            that f(0)=scale.
 
     Returns:
         float: The partial derivative of the smooth, continuous
@@ -309,20 +317,20 @@ def log_exp_deriv_multiplier(linear_value):
         # Lower limit for exponential function to prevent underflow
         # (but don't set to zero, otherwise gradient-based optimisers
         # will get stuck)
-        return log_exp_deriv_multiplier(-30)
+        return log_exp_deriv_multiplier(-30, scale)
     elif linear_value < 0:
         # Exponential portion
-        return np.exp(linear_value)
+        return scale*np.exp(linear_value)
     else:
         # Logarithmic portion
-        return 1 / (linear_value + 1)
+        return scale / (linear_value + 1)
 
 
 def adam_update(
         time, partial_deriv,
         prev_first_moment, prev_second_moment, prev_parameters,
         step_size=0.001, decay_one=0.9, decay_two=0.999,
-        epsilon=10**(-8)):
+        regularisation_rate=10**(-8), epsilon=10**(-8)):
     """Implementation of Adam optimisation algorithm
     Ref - Kingma, Ba, 'Adam: A Method for Stochastic Optimisation', 2014,
     https://doi.org/10.48550/arXiv.1412.6980
@@ -358,6 +366,8 @@ def adam_update(
     adapted_step_size = step_size*np.sqrt(1-decay_two**time)/(1-decay_one**time)
 
     # Update the parameters
-    parameters = prev_parameters - adapted_step_size*first_moment/(np.sqrt(second_moment)+epsilon)
+    parameters = \
+        prev_parameters*(1-2*regularisation_rate) \
+        - adapted_step_size*first_moment/(np.sqrt(second_moment)+epsilon)
 
     return parameters, first_moment, second_moment

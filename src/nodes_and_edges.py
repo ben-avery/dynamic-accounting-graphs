@@ -118,7 +118,7 @@ class Node():
         self.causal_excitor_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=3,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
@@ -126,7 +126,7 @@ class Node():
         self.causal_excitor_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
+                initialisation_scaling=1,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
@@ -134,7 +134,7 @@ class Node():
         self.causal_excitor_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.5,
+                initialisation_scaling=100,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -143,7 +143,7 @@ class Node():
         self.causal_excitor_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=3,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
@@ -151,7 +151,7 @@ class Node():
         self.causal_excitor_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
+                initialisation_scaling=1,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
@@ -159,7 +159,7 @@ class Node():
         self.causal_excitor_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.5,
+                initialisation_scaling=100,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -168,7 +168,7 @@ class Node():
         self.causal_excitee_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=3,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
@@ -176,7 +176,7 @@ class Node():
         self.causal_excitee_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
+                initialisation_scaling=1,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
@@ -184,7 +184,7 @@ class Node():
         self.causal_excitee_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.5,
+                initialisation_scaling=100,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -193,7 +193,7 @@ class Node():
         self.causal_excitee_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=3,
+                initialisation_scaling=10,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
@@ -201,7 +201,7 @@ class Node():
         self.causal_excitee_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
+                initialisation_scaling=1,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
@@ -209,7 +209,7 @@ class Node():
         self.causal_excitee_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.5,
+                initialisation_scaling=100,
                 spontaneous=False,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
@@ -435,11 +435,10 @@ class NodeEmbedding():
         # Increase the number of learning steps
         self.learning_steps += 1
 
-        # Extract gradient with regularisation penalty
-        regularisation = -2*self.regularisation_rate*self.value
-        gradient = -self.pending_updates - regularisation
+        # Extract gradient
+        gradient = -self.pending_updates
 
-        # Adam update
+        # Adam update (with weight-decay regularisation)
         self.value, self.prev_first_moment, self.prev_second_moment = \
             adam_update(
                 time=self.learning_steps,
@@ -447,7 +446,8 @@ class NodeEmbedding():
                 prev_first_moment=self.prev_first_moment,
                 prev_second_moment=self.prev_second_moment,
                 prev_parameters=self.value,
-                step_size=self.learning_rate*learning_boost
+                step_size=self.learning_rate*learning_boost,
+                regularisation_rate=self.regularisation_rate
             )
 
         # Reset the cache
@@ -491,15 +491,20 @@ class EdgeComparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
-    def __init__(self, dimension, positive_output=True, min_at=0):
+    def __init__(self, dimension, log_exp_scale=None, positive_output=True, min_at=0):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings
+            log_exp_scale (float, optional): The scale to apply to the smooth,
+                positive function (if positive_output is True).
+                Defaults to None.
             positive_output (bool, optional): Whether a function should
                 be applied to the output to ensure it is positive.
                 Defaults to True.
             min_at (float, optional): The minimum value for the function.
+                Note that the regularisation will push the output to
+                min_at + log_exp_scale if positive_output is True.
                 Defaults to 0.0.
         """
 
@@ -517,6 +522,15 @@ class EdgeComparer():
             # the gradient-ascent algorithm, the value of the
             # linear function is required.
             self.last_linear_value = None
+
+            # Record the scaling to be applied to the smooth,
+            # positive function
+            if log_exp_scale is None:
+                raise ValueError(
+                    'log_exp_scale must be provided if '
+                    'positive_output is True'
+                )
+            self.log_exp_scale = log_exp_scale
 
     #@profile
     def compare_embeddings(self, e_i, e_j):
@@ -541,6 +555,6 @@ class EdgeComparer():
 
             # Apply the piecewise function to make the output
             # certainly positive
-            return log_exp_function(linear_value) + self.min_at
+            return log_exp_function(linear_value, self.log_exp_scale) + self.min_at
         else:
             return linear_value
