@@ -79,9 +79,10 @@ def part_weibull(x, alpha, beta):
     return np.exp(exponent)
 
 
-def calc_delP_delIntensity(count, sum_Intensity):
+def calc_inverse_probability_delP_delIntensity(count, sum_Intensity):
     """A partial derivative of the likelihood by
-    the intensity
+    the intensity, multiplied by the inverse of the likelihood
+    (since the terms are always multiplied by each other)
 
     Args:
         count (int): The number of a certain edge that
@@ -92,12 +93,7 @@ def calc_delP_delIntensity(count, sum_Intensity):
     Returns:
         float: The partial derivative
     """
-    if count == 0:
-        return -np.exp(-sum_Intensity)
-    else:
-        return (1/math.factorial(count)) * (
-            count*(sum_Intensity**(count-1)) - sum_Intensity**count
-        )*np.exp(-sum_Intensity)
+    return count/sum_Intensity - 1
 
 
 #@profile
@@ -292,7 +288,7 @@ def log_exp_function(linear_value, f_shift):
         return np.exp(shifted_linear_value)
     else:
         # Logarithmic portion
-        return (np.log(shifted_linear_value + 1) + 1)
+        return np.log(shifted_linear_value + 1) + 1
 
 
 def find_shift(value_at_zero):

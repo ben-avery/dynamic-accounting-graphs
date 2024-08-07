@@ -6,7 +6,8 @@ from numpy import log
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
 from excitement import Excitement
 from utilities import (
-    calc_delP_delIntensity, calc_delIntensity_delAlpha,
+    calc_inverse_probability_delP_delIntensity,
+    calc_delIntensity_delAlpha,
     calc_delIntensity_delBeta, calc_delIntensity_delWeight,
     calc_delBaselineIntensity_delZero,
     calc_delBaselineIntensity_delOne,
@@ -21,12 +22,12 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 causal_learning_rate=0.001,
+                 causal_learning_rate=0.01,
                  causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
                  beta_regularisation_rate=10**(-7),
                  weight_regularisation_rate=10**(-5),
-                 spontaneous_learning_rate=0.00001,
+                 spontaneous_learning_rate=0.0001,
                  spontaneous_regularisation_rate=10**(-7)):
         """Initialise the class
 
@@ -635,15 +636,8 @@ class DynamicAccountingGraph():
         with respect to each parameter
         """
 
-        # Calculate the inverse of the probability
-        inverse_probability = 1 / max(0.00001, self.gradient_log['P'])
-
         # Calculate partial derivatives that are
         # independent of the excitor edge.
-        delP_delIntensity = \
-            calc_delP_delIntensity(
-                self.gradient_log['count'],
-                self.gradient_log['sum_Intensity'])
         delIntensity_delAlpha = [
             calc_delIntensity_delAlpha(
                 time,
@@ -671,7 +665,14 @@ class DynamicAccountingGraph():
             for excite_index, time in enumerate(self.gradient_log['times'])
         ]
 
-        inverse_probability_delP_delIntensity = inverse_probability * delP_delIntensity
+        # Calculate the inverse probability multiplied by the partial derivative
+        # of the probability by the total intensity (since these two terms only
+        # ever appear multiplied together, and have a significant amount of
+        # cancellation)
+        inverse_probability_delP_delIntensity = \
+            calc_inverse_probability_delP_delIntensity(
+                self.gradient_log['count'],
+                self.gradient_log['sum_Intensity'])
 
         # Get the indices of the nodes in the excitee edge
         k = self.gradient_log['k']

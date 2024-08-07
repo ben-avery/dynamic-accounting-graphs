@@ -3,7 +3,6 @@ import numpy as np
 from scipy.stats import poisson
 
 import utilities
-from nodes_and_edges import EdgeComparer
 
 
 class TestWeibullPdf(unittest.TestCase):
@@ -181,11 +180,11 @@ class TestWeibullPdf(unittest.TestCase):
         )
 
 
-class Test_delP_delIntensity(unittest.TestCase):
+class Test_inverse_prob_delP_delIntensity(unittest.TestCase):
     """Test the derivative of the Poisson pmf relative
     to its mean
     """
-    def derivative_helper(self, x, mu, epsilon=10**(-6)):
+    def derivative_helper(self, x, mu, epsilon=10**(-9)):
         """Calculate the derivative as a linear approximation
         over a small distance, and compare to the function
 
@@ -210,13 +209,14 @@ class Test_delP_delIntensity(unittest.TestCase):
 
         estimated_deriv = (next_prob-base_prob)/epsilon
 
-        calc_deriv = utilities.calc_delP_delIntensity(
+        calc_deriv_times_inv_prob = utilities.calc_inverse_probability_delP_delIntensity(
             count=x, sum_Intensity=mu
         )
 
         self.assertAlmostEqual(
-            calc_deriv,
-            estimated_deriv
+            calc_deriv_times_inv_prob,
+            estimated_deriv/base_prob,
+            places=5
         )
 
     def test_deriv(self):
@@ -256,7 +256,7 @@ class Test_delP_delIntensity(unittest.TestCase):
 
         # Test
         self.derivative_helper(
-            x, mu, epsilon=10**(-8)
+            x, mu
         )
 
 
