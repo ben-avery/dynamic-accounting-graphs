@@ -79,9 +79,10 @@ def part_weibull(x, alpha, beta):
     return np.exp(exponent)
 
 
-def calc_delP_delIntensity(count, sum_Intensity):
+def calc_inverse_probability_delP_delIntensity(count, sum_Intensity):
     """A partial derivative of the likelihood by
-    the intensity
+    the intensity, multiplied by the inverse of the likelihood
+    (since the terms are always multiplied by each other)
 
     Args:
         count (int): The number of a certain edge that
@@ -92,12 +93,7 @@ def calc_delP_delIntensity(count, sum_Intensity):
     Returns:
         float: The partial derivative
     """
-    if count == 0:
-        return -np.exp(-sum_Intensity)
-    else:
-        return (1/math.factorial(count)) * (
-            count*(sum_Intensity**(count-1)) - sum_Intensity**count
-        )*np.exp(-sum_Intensity)
+    return count/sum_Intensity - 1
 
 
 #@profile
@@ -186,45 +182,48 @@ def calc_delIntensity_delWeight(time, alpha, beta):
     return discrete_weibull_pmf(time, alpha, beta)
 
 
-def calc_delBaselineIntensity_delZero(linear_value):
+def calc_delBaselineIntensity_delZero(linear_value, f_shift):
     """A partial derivative of the baseline intensity by
     the first linear parameter
 
     Args:
         linear_value (float): The linear part of the function
-
+        f_shift (float): The f_shift for the log_exp function.
+        
     Returns:
         float: The partial derivative
     """
-    return log_exp_deriv_multiplier(linear_value)
+    return log_exp_deriv_multiplier(linear_value, f_shift)
 
 
-def calc_delBaselineIntensity_delOne(linear_value, source_balance):
+def calc_delBaselineIntensity_delOne(linear_value, source_balance, f_shift):
     """A partial derivative of the baseline intensity by
     the second linear parameter
 
     Args:
         linear_value (float): The linear part of the function
         source_balance (float): The balance on the source node
+        f_shift (float): The f_shift for the log_exp function.
 
     Returns:
         float: The partial derivative
     """
-    return log_exp_deriv_multiplier(linear_value) * source_balance
+    return log_exp_deriv_multiplier(linear_value, f_shift) * source_balance
 
 
-def calc_delBaselineIntensity_delTwo(linear_value, dest_balance):
+def calc_delBaselineIntensity_delTwo(linear_value, dest_balance, f_shift):
     """A partial derivative of the baseline intensity by
     the third linear parameter
 
     Args:
         linear_value (float): The linear part of the function
         dest_balance (float): The balance on the source node
+        f_shift (float): The f_shift for the log_exp function.
 
     Returns:
         float: The partial derivative
     """
-    return log_exp_deriv_multiplier(linear_value) * dest_balance
+    return log_exp_deriv_multiplier(linear_value, f_shift) * dest_balance
 
 
 def calc_delBaselineDotproduct_delParam(parameter):
@@ -242,7 +241,7 @@ def calc_delBaselineDotproduct_delParam(parameter):
 
 
 def calc_delCausalDotproduct_delParam(
-        linear_value, node_embedding, edge_embedding):
+        linear_value, node_embedding, edge_embedding, f_shift):
     """A partial derivative of the causal parameters
     by the relevant embeddings
 
@@ -250,17 +249,18 @@ def calc_delCausalDotproduct_delParam(
         linear_value (float): The linear part of the function
         node_embedding (np.array): The node embedding
         edge_embedding (np.array): The edge embedding
+        f_shift (float): The f_shift for the log_exp function.
 
     Returns:
         np.array: The partial derivative
     """
 
     return \
-        log_exp_deriv_multiplier(linear_value) * (node_embedding*edge_embedding)
+        log_exp_deriv_multiplier(linear_value, f_shift) * (node_embedding*edge_embedding)
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def log_exp_function(linear_value):
+def log_exp_function(linear_value, f_shift):
     """A helper function which gives the smooth, continuous
     function that ensures parameters are positive.
 
@@ -268,26 +268,49 @@ def log_exp_function(linear_value):
         linear_value (float): The value of the parameter before
             being passed through the smooth, continuous function
             to ensure it is positive
+        f_shift (float): Shift the function by f_shift so
+            that f(0) is a fixed value.
 
     Returns:
         float: The partial derivative of the smooth, continuous
             function with respect to the linear function
     """
 
+    # Shift the linear value
+    shifted_linear_value = linear_value + f_shift
+
     # The smooth function is defined piecewise
-    if linear_value < -30:
+    if shifted_linear_value < -30:
         # Lower limit for exponential function to prevent underflow
         return 0
-    elif linear_value < 0:
+    elif shifted_linear_value < 0:
         # Exponential portion
-        return np.exp(linear_value)
+        return np.exp(shifted_linear_value)
     else:
         # Logarithmic portion
-        return np.log(linear_value + 1) + 1
+        return np.log(shifted_linear_value + 1) + 1
+
+
+def find_shift(value_at_zero):
+    """Return the f_shift required to get
+    log_exp_function(0, f_shift)=value_at_zero.
+
+    Args:
+        value_at_zero (float): The value that log_exp_function
+            should take at zero, with f_shift given by the return
+            of this function
+
+    Returns:
+        f_shift: The required shift
+    """
+    if value_at_zero > 1:
+        return np.exp(value_at_zero - 1) - 1
+    else:
+        return np.log(value_at_zero)
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def log_exp_deriv_multiplier(linear_value):
+def log_exp_deriv_multiplier(linear_value, f_shift):
     """A helper function which gives the partial derivative
     from the smooth, continuous function that ensures the
     Weibull parameters and weight are positive.
@@ -296,33 +319,38 @@ def log_exp_deriv_multiplier(linear_value):
         linear_value (float): The value of the parameter before
             being passed through the smooth, continuous function
             to ensure it is positive
+        f_shift (float): Shift the function by f_shift so
+            that f(0) is a fixed value.
 
     Returns:
         float: The partial derivative of the smooth, continuous
             function with respect to the linear function
     """
 
+    # Shift the linear value
+    shifted_linear_value = linear_value + f_shift
+
     # The smooth function is defined piecewise, and therefore
     # its gradient has a different expression for positive and
     # negative values
-    if linear_value < -30:
+    if shifted_linear_value < -30:
         # Lower limit for exponential function to prevent underflow
         # (but don't set to zero, otherwise gradient-based optimisers
         # will get stuck)
-        return log_exp_deriv_multiplier(-30)
-    elif linear_value < 0:
+        return log_exp_deriv_multiplier(-30, 0)
+    elif shifted_linear_value < 0:
         # Exponential portion
-        return np.exp(linear_value)
+        return np.exp(shifted_linear_value)
     else:
         # Logarithmic portion
-        return 1 / (linear_value + 1)
+        return 1 / (shifted_linear_value + 1)
 
 
 def adam_update(
         time, partial_deriv,
         prev_first_moment, prev_second_moment, prev_parameters,
         step_size=0.001, decay_one=0.9, decay_two=0.999,
-        epsilon=10**(-8)):
+        regularisation_rate=10**(-8), epsilon=10**(-8)):
     """Implementation of Adam optimisation algorithm
     Ref - Kingma, Ba, 'Adam: A Method for Stochastic Optimisation', 2014,
     https://doi.org/10.48550/arXiv.1412.6980
@@ -358,6 +386,8 @@ def adam_update(
     adapted_step_size = step_size*np.sqrt(1-decay_two**time)/(1-decay_one**time)
 
     # Update the parameters
-    parameters = prev_parameters - adapted_step_size*first_moment/(np.sqrt(second_moment)+epsilon)
+    parameters = \
+        prev_parameters*(1-2*regularisation_rate) \
+        - adapted_step_size*first_moment/(np.sqrt(second_moment)+epsilon)
 
     return parameters, first_moment, second_moment

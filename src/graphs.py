@@ -6,14 +6,15 @@ from numpy import log
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
 from excitement import Excitement
 from utilities import (
-    calc_delP_delIntensity, calc_delIntensity_delAlpha,
+    calc_inverse_probability_delP_delIntensity,
+    calc_delIntensity_delAlpha,
     calc_delIntensity_delBeta, calc_delIntensity_delWeight,
     calc_delBaselineIntensity_delZero,
     calc_delBaselineIntensity_delOne,
     calc_delBaselineIntensity_delTwo,
     calc_delCausalDotproduct_delParam,
     calc_delBaselineDotproduct_delParam,
-    log_exp_function
+    log_exp_function, find_shift
 )
 
 
@@ -21,13 +22,13 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
-                 causal_learning_rate=0.0001,
-                 causal_learning_boost=100,
+                 causal_learning_rate=0.01,
+                 causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
-                 beta_regularisation_rate=10**(-8),
-                 weight_regularisation_rate=10**(-3),
-                 spontaneous_learning_rate=0.001,
-                 spontaneous_regularisation_rate=10**(-5)):
+                 beta_regularisation_rate=10**(-7),
+                 weight_regularisation_rate=10**(-5),
+                 spontaneous_learning_rate=0.0001,
+                 spontaneous_regularisation_rate=10**(-7)):
         """Initialise the class
 
         Args:
@@ -35,21 +36,21 @@ class DynamicAccountingGraph():
                 for name, balance, number and mapping)
             node_dimension (int): The dimension for the node embeddings
             causal_learning_rate (float, optional): The learning rate for the
-                optimisation of causal parameters. Defaults to 0.0001.
+                optimisation of causal parameters. Defaults to 0.001.
             causal_learning_boost (float, optional): Multiple to boost the causal
                 learning rate by during the training of only the causal part
                 of the model (i.e. when the spontaneous part of the model is
-                deactivated). Defaults to 100.
+                deactivated). Defaults to 1.
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-8).
+                L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-7).
             weight_regularisation_rate  (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-3).
+                L2 regularisation penalty of Weibull weight parameters. Defaults to 5*(10**(-4)).
             spontaneous_learning_rate (float, optional): The learning rate for the
-                optimisation of spontaneous parameters. Defaults to 0.001.
+                optimisation of spontaneous parameters. Defaults to 0.00001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-5).
+                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-7).
         """
         self.time = 0
         self.epoch = 0
@@ -63,6 +64,15 @@ class DynamicAccountingGraph():
 
         self.spontaneous_learning_rate = spontaneous_learning_rate
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
+
+        # Set the threshold below which excitement is seen as trivial
+        self.excitement_threshold = 0.0001
+
+        # Set the scales for the smooth, positive functions
+        self.f_shift_spontaneous = find_shift(self.excitement_threshold)
+        self.f_shift_alpha = find_shift(1)
+        self.f_shift_beta = find_shift(0.5)
+        self.f_shift_weight = find_shift(self.excitement_threshold)
 
         # Create the nodes with random embeddings
         self.nodes = []
@@ -97,15 +107,18 @@ class DynamicAccountingGraph():
 
         self.causal_comparer_weight = EdgeComparer(
             dimension=self.node_dimension,
+            f_shift=self.f_shift_weight,
             positive_output=True
         )
         self.causal_comparer_alpha = EdgeComparer(
             dimension=self.node_dimension,
+            f_shift=self.f_shift_alpha,
             positive_output=True,
             min_at=0.5
         )
         self.causal_comparer_beta = EdgeComparer(
             dimension=self.node_dimension,
+            f_shift=self.f_shift_beta,
             positive_output=True,
             min_at=1.0
         )
@@ -124,7 +137,6 @@ class DynamicAccountingGraph():
         # other based on the weight of the corresponding
         # Weibull distribution
         self.possible_excitees = dict()
-        self.excitement_threshold = 0.0001
         self.find_excitors()
 
         # Create an attribute to store any edges that are
@@ -421,7 +433,9 @@ class DynamicAccountingGraph():
             full_linear_output
 
         # Make it positive
-        return log_exp_function(full_linear_output) + min_intensity
+        return log_exp_function(
+            full_linear_output, f_shift=self.f_shift_spontaneous
+            ) + min_intensity
 
     #@profile
     def edge_intensity(self, i, j, spontaneous_on=True):
@@ -622,15 +636,8 @@ class DynamicAccountingGraph():
         with respect to each parameter
         """
 
-        # Calculate the inverse of the probability
-        inverse_probability = 1 / max(0.00001, self.gradient_log['P'])
-
         # Calculate partial derivatives that are
         # independent of the excitor edge.
-        delP_delIntensity = \
-            calc_delP_delIntensity(
-                self.gradient_log['count'],
-                self.gradient_log['sum_Intensity'])
         delIntensity_delAlpha = [
             calc_delIntensity_delAlpha(
                 time,
@@ -658,7 +665,14 @@ class DynamicAccountingGraph():
             for excite_index, time in enumerate(self.gradient_log['times'])
         ]
 
-        inverse_probability_delP_delIntensity = inverse_probability * delP_delIntensity
+        # Calculate the inverse probability multiplied by the partial derivative
+        # of the probability by the total intensity (since these two terms only
+        # ever appear multiplied together, and have a significant amount of
+        # cancellation)
+        inverse_probability_delP_delIntensity = \
+            calc_inverse_probability_delP_delIntensity(
+                self.gradient_log['count'],
+                self.gradient_log['sum_Intensity'])
 
         # Get the indices of the nodes in the excitee edge
         k = self.gradient_log['k']
@@ -675,7 +689,8 @@ class DynamicAccountingGraph():
                 self.gradient_log['baseline_linear_value']
             delBaselineIntensity_delZero = \
                 calc_delBaselineIntensity_delZero(
-                    baseline_linear_value
+                    baseline_linear_value,
+                    f_shift=self.f_shift_spontaneous
                 )
 
             source_balance = \
@@ -683,7 +698,8 @@ class DynamicAccountingGraph():
             delBaselineIntensity_delOne = \
                 calc_delBaselineIntensity_delOne(
                     baseline_linear_value,
-                    source_balance
+                    source_balance,
+                    f_shift=self.f_shift_spontaneous
                 )
 
             dest_balance = \
@@ -691,7 +707,8 @@ class DynamicAccountingGraph():
             delBaselineIntensity_delTwo = \
                 calc_delBaselineIntensity_delTwo(
                     baseline_linear_value,
-                    dest_balance
+                    dest_balance,
+                    f_shift=self.f_shift_spontaneous
                 )
 
             s_k_0 = node_k.spontaneous_source_0.value
@@ -815,76 +832,88 @@ class DynamicAccountingGraph():
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_alpha,
                     node_embedding=r_j_alpha,
-                    edge_embedding=excitee_kl_alpha
+                    edge_embedding=excitee_kl_alpha,
+                    f_shift=self.f_shift_alpha
                 )
             delBeta_delI = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=r_j_beta,
-                    edge_embedding=excitee_kl_beta
+                    edge_embedding=excitee_kl_beta,
+                    f_shift=self.f_shift_beta
                 )
             delWeight_delI = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=r_j_weight,
-                    edge_embedding=excitee_kl_weight
+                    edge_embedding=excitee_kl_weight,
+                    f_shift=self.f_shift_weight
                 )
 
             delAlpha_delJ = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_alpha,
                     node_embedding=r_i_alpha,
-                    edge_embedding=excitee_kl_alpha
+                    edge_embedding=excitee_kl_alpha,
+                    f_shift=self.f_shift_alpha
                 )
             delBeta_delJ = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=r_i_beta,
-                    edge_embedding=excitee_kl_beta
+                    edge_embedding=excitee_kl_beta,
+                    f_shift=self.f_shift_beta
                 )
             delWeight_delJ = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=r_i_weight,
-                    edge_embedding=excitee_kl_weight
+                    edge_embedding=excitee_kl_weight,
+                    f_shift=self.f_shift_weight
                 )
 
             delAlpha_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_alpha,
                     node_embedding=e_l_alpha,
-                    edge_embedding=excitor_ij_alpha
+                    edge_embedding=excitor_ij_alpha,
+                    f_shift=self.f_shift_alpha
                 )
             delBeta_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=e_l_beta,
-                    edge_embedding=excitor_ij_beta
+                    edge_embedding=excitor_ij_beta,
+                    f_shift=self.f_shift_beta
                 )
             delWeight_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=e_l_weight,
-                    edge_embedding=excitor_ij_weight
+                    edge_embedding=excitor_ij_weight,
+                    f_shift=self.f_shift_weight
                 )
 
             delAlpha_delL = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_alpha,
                     node_embedding=e_k_alpha,
-                    edge_embedding=excitor_ij_alpha
+                    edge_embedding=excitor_ij_alpha,
+                    f_shift=self.f_shift_alpha
                 )
             delBeta_delL = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=e_k_beta,
-                    edge_embedding=excitor_ij_beta
+                    edge_embedding=excitor_ij_beta,
+                    f_shift=self.f_shift_beta
                 )
             delWeight_delL = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_weight,
                     node_embedding=e_k_weight,
-                    edge_embedding=excitor_ij_weight
+                    edge_embedding=excitor_ij_weight,
+                    f_shift=self.f_shift_weight
                 )
 
             # Apply the gradient updates

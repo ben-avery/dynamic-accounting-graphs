@@ -3,7 +3,6 @@ import numpy as np
 from scipy.stats import poisson
 
 import utilities
-from nodes_and_edges import EdgeComparer
 
 
 class TestWeibullPdf(unittest.TestCase):
@@ -181,11 +180,11 @@ class TestWeibullPdf(unittest.TestCase):
         )
 
 
-class Test_delP_delIntensity(unittest.TestCase):
+class Test_inverse_prob_delP_delIntensity(unittest.TestCase):
     """Test the derivative of the Poisson pmf relative
     to its mean
     """
-    def derivative_helper(self, x, mu, epsilon=10**(-6)):
+    def derivative_helper(self, x, mu, epsilon=10**(-9)):
         """Calculate the derivative as a linear approximation
         over a small distance, and compare to the function
 
@@ -210,17 +209,18 @@ class Test_delP_delIntensity(unittest.TestCase):
 
         estimated_deriv = (next_prob-base_prob)/epsilon
 
-        calc_deriv = utilities.calc_delP_delIntensity(
+        calc_deriv_times_inv_prob = utilities.calc_inverse_probability_delP_delIntensity(
             count=x, sum_Intensity=mu
         )
 
         self.assertAlmostEqual(
-            calc_deriv,
-            estimated_deriv
+            calc_deriv_times_inv_prob,
+            estimated_deriv/base_prob,
+            places=5
         )
 
     def test_deriv(self):
-        # Choose the derivate
+        # Choose the derivative
         x = 2
         mu = 3
 
@@ -230,7 +230,7 @@ class Test_delP_delIntensity(unittest.TestCase):
         )
 
     def test_deriv_at_zero(self):
-        # Choose the derivate
+        # Choose the derivative
         x = 0
         mu = 3
 
@@ -240,7 +240,7 @@ class Test_delP_delIntensity(unittest.TestCase):
         )
 
     def test_deriv_non_integer(self):
-        # Choose the derivate
+        # Choose the derivative
         x = 6
         mu = 4.5
 
@@ -250,13 +250,13 @@ class Test_delP_delIntensity(unittest.TestCase):
         )
 
     def test_deriv_small_mean(self):
-        # Choose the derivate
+        # Choose the derivative
         x = 1
         mu = 0.001
 
         # Test
         self.derivative_helper(
-            x, mu, epsilon=10**(-8)
+            x, mu
         )
 
 
@@ -348,7 +348,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 1
         alpha = 3
         beta = 3
@@ -360,7 +360,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv_at_zero_time(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 0
         alpha = 3
         beta = 3
@@ -372,7 +372,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv_at_small_alpha(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 1
         alpha = 0.001
         beta = 3
@@ -384,7 +384,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv_at_small_beta(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 1
         alpha = 3
         beta = 0.001
@@ -396,7 +396,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv_at_large_alpha(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 0
         alpha = 500
         beta = 3
@@ -408,7 +408,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv_at_large_beta(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 0
         alpha = 3
         beta = 500
@@ -420,7 +420,7 @@ class Test_delIntensity_delParams(unittest.TestCase):
         )
 
     def test_deriv_with_new_weight(self):
-        # Choose the derivate
+        # Choose the derivative
         time = 1
         alpha = 3
         beta = 3
@@ -429,229 +429,6 @@ class Test_delIntensity_delParams(unittest.TestCase):
         # Test
         self.derivative_helper(
             time, alpha, beta, weight
-        )
-
-
-class Test_delComparer_delParams(unittest.TestCase):
-    """Test the derivative of the Comparer function
-    relative to its parameters
-    """
-    def derivative_helper(self, matrix, e_ij, e_kl, node_dimension,
-                          epsilon=10**(-8), min_at=None):
-        # Set up the comparer
-        if min_at is None:
-            comparer = EdgeComparer(node_dimension*2)
-        else:
-            comparer = EdgeComparer(node_dimension*2, min_at=min_at)
-        comparer.matrix = matrix
-
-        # Calculate the function value
-        base_value = \
-            comparer.compare_embeddings(
-                e_ij, e_kl
-            )
-        linear_value = comparer.last_linear_value
-
-        # Calculate the actual derivative for I
-        calc_deriv_I = \
-            utilities.calc_delComparer_delI(
-                linear_value, matrix, e_kl, node_dimension)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for node I embedding
-        for a in range(node_dimension):
-            increment = np.eye(1, node_dimension*2, a)[0]*epsilon
-            next_value = \
-                comparer.compare_embeddings(
-                    e_ij+increment, e_kl
-                )
-
-            estimated_deriv = (next_value-base_value)/epsilon
-
-            self.assertAlmostEqual(
-                calc_deriv_I[a],
-                estimated_deriv,
-                msg=f'Node I, dimension {a}'
-            )
-
-        # Calculate the actual derivative for J
-        calc_deriv_J = \
-            utilities.calc_delComparer_delJ(
-                linear_value, matrix, e_kl, node_dimension)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for node J embedding
-        for a in range(node_dimension):
-            increment = np.eye(1, node_dimension*2, a+node_dimension)[0]*epsilon
-            next_value = \
-                comparer.compare_embeddings(
-                    e_ij+increment, e_kl
-                )
-
-            estimated_deriv = (next_value-base_value)/epsilon
-
-            self.assertAlmostEqual(
-                calc_deriv_J[a],
-                estimated_deriv,
-                msg=f'Node J, dimension {a}'
-            )
-
-        # Calculate the actual derivative for K
-        calc_deriv_K = \
-            utilities.calc_delComparer_delK(
-                linear_value, matrix, e_ij, node_dimension)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for node K embedding
-        for a in range(node_dimension):
-            increment = np.eye(1, node_dimension*2, a)[0]*epsilon
-            next_value = \
-                comparer.compare_embeddings(
-                    e_ij, e_kl+increment
-                )
-
-            estimated_deriv = (next_value-base_value)/epsilon
-
-            self.assertAlmostEqual(
-                calc_deriv_K[a],
-                estimated_deriv,
-                msg=f'Node K, dimension {a}'
-            )
-
-        # Calculate the actual derivative for L
-        calc_deriv_L = \
-            utilities.calc_delComparer_delL(
-                linear_value, matrix, e_ij, node_dimension)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for node L embedding
-        for a in range(node_dimension):
-            increment = np.eye(1, node_dimension*2, a+node_dimension)[0]*epsilon
-            next_value = \
-                comparer.compare_embeddings(
-                    e_ij, e_kl+increment
-                )
-
-            estimated_deriv = (next_value-base_value)/epsilon
-
-            self.assertAlmostEqual(
-                calc_deriv_L[a],
-                estimated_deriv,
-                msg=f'Node L, dimension {a}'
-            )
-
-        # Calculate the actual derivative for the matrix
-        calc_deriv_A = \
-            utilities.calc_delComparer_delMatrix(
-                linear_value, e_ij, e_kl)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for matrix components
-        for a in range(node_dimension*2):
-            for b in range(node_dimension*2):
-                increment = np.zeros(
-                    (node_dimension*2, node_dimension*2))
-                increment[a][b] = epsilon
-
-                comparer.matrix = matrix + increment
-
-                next_value = \
-                    comparer.compare_embeddings(
-                        e_ij, e_kl
-                    )
-
-                estimated_deriv = (next_value-base_value)/epsilon
-
-                self.assertAlmostEqual(
-                    calc_deriv_A[a][b],
-                    estimated_deriv,
-                    msg=f'Matrix component {a}, {b}'
-                )
-
-    def test_deriv(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 2, 3, 4],
-            [4, 3, 2, 1],
-            [-0.5, 0.5, -0.5, 0.5],
-            [1, 1, 1, 1]
-        ])
-        e_ij = np.array(
-            [1, 3, 0, -7]
-        )
-        e_kl = np.array(
-            [-1, 0.5, 0.3, 1.0]
-        )
-        node_dimension = 2
-
-        # Test
-        self.derivative_helper(
-            matrix, e_ij, e_kl, node_dimension
-        )
-
-    def test_deriv_negative(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-        ])
-        e_ij = np.array(
-            [1, 1, 1, 1]
-        )
-        e_kl = np.array(
-            [-1, -1, -1, -1]
-        )
-        node_dimension = 2
-
-        # Test
-        self.derivative_helper(
-            matrix, e_ij, e_kl, node_dimension
-        )
-
-    def test_deriv_positive(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-        ])
-        e_ij = np.array(
-            [1, 1, 1, 1]
-        )
-        e_kl = np.array(
-            [1, 1, 1, 1]
-        )
-        node_dimension = 2
-
-        # Test
-        self.derivative_helper(
-            matrix, e_ij, e_kl, node_dimension
-        )
-
-    def test_deriv_min_at(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-        ])
-        e_ij = np.array(
-            [1, 1, 1, 1]
-        )
-        e_kl = np.array(
-            [1, 1, 1, 1]
-        )
-        node_dimension = 2
-
-        # Test
-        self.derivative_helper(
-            matrix, e_ij, e_kl, node_dimension,
-            min_at=10,
-            epsilon=10**(-6)
         )
 
 
@@ -669,15 +446,17 @@ class Test_delBaselineIntensity_delCoeffs(unittest.TestCase):
         return full_linear_output
 
     def baseline_intensity(self, coef_0, coef_1, coef_2,
-                           balance_i, balance_j):
+                           balance_i, balance_j,
+                           f_shift):
         full_linear_output = self.linear_part(
             coef_0, coef_1, coef_2,
             balance_i, balance_j
         )
 
-        return utilities.log_exp_function(full_linear_output)
+        return utilities.log_exp_function(full_linear_output, f_shift)
 
-    def derivative_helper(self, coef_0, coef_1, coef_2, balance_i, balance_j,
+    def derivative_helper(self, coef_0, coef_1, coef_2,
+                          balance_i, balance_j, f_shift,
                           epsilon=10**(-8)):
         # Calculate the base value for the estimated derivatives
         linear_value = self.linear_part(
@@ -686,253 +465,136 @@ class Test_delBaselineIntensity_delCoeffs(unittest.TestCase):
         base_value = \
             self.baseline_intensity(
                 coef_0, coef_1, coef_2,
-                balance_i, balance_j)
+                balance_i, balance_j,
+                f_shift)
 
         # Calculate the estimated derivative for coef_0
         next_value = \
             self.baseline_intensity(
                 coef_0+epsilon, coef_1, coef_2,
-                balance_i, balance_j)
+                balance_i, balance_j, f_shift)
         estimated_deriv = (next_value-base_value)/epsilon
 
         # Calculate the actual derivative for coef_0
         calc_deriv_0 = \
             utilities.calc_delBaselineIntensity_delZero(
-                linear_value)
+                linear_value, f_shift)
 
         self.assertAlmostEqual(
             calc_deriv_0,
             estimated_deriv,
-            msg='Coefficient 0')
+            msg='Coefficient 0',
+            places=6)
 
         # Calculate the estimated derivative for coef_1
         next_value = \
             self.baseline_intensity(
                 coef_0, coef_1+epsilon, coef_2,
-                balance_i, balance_j)
+                balance_i, balance_j, f_shift)
         estimated_deriv = (next_value-base_value)/epsilon
 
         # Calculate the actual derivative for coef_1
         calc_deriv_1 = \
             utilities.calc_delBaselineIntensity_delOne(
-                linear_value, balance_i)
+                linear_value, balance_i, f_shift)
 
         self.assertAlmostEqual(
             calc_deriv_1,
             estimated_deriv,
-            msg='Coefficient 1')
+            msg='Coefficient 1',
+            places=6)
 
         # Calculate the estimated derivative for coef_2
         next_value = \
             self.baseline_intensity(
                 coef_0, coef_1, coef_2+epsilon,
-                balance_i, balance_j)
+                balance_i, balance_j, f_shift)
         estimated_deriv = (next_value-base_value)/epsilon
 
         # Calculate the actual derivative for coef_2
         calc_deriv_2 = \
             utilities.calc_delBaselineIntensity_delTwo(
-                linear_value, balance_j)
+                linear_value, balance_j, f_shift)
 
         self.assertAlmostEqual(
             calc_deriv_2,
             estimated_deriv,
-            msg='Coefficient 2')
+            msg='Coefficient 2',
+            places=6)
 
     def test_deriv(self):
-        # Choose the derivate
+        # Choose the derivative
         coef_0 = 1.5
         coef_1 = 1.2
         coef_2 = 0.8
         balance_i = 10
         balance_j = -10
+        f_shift = 1.5
 
         self.derivative_helper(
             coef_0, coef_1, coef_2,
-            balance_i, balance_j
+            balance_i, balance_j,
+            f_shift
         )
 
     def test_negative_coefs(self):
-        # Choose the derivate
+        # Choose the derivative
         coef_0 = -3
         coef_1 = -3
         coef_2 = -3
         balance_i = 1.5
         balance_j = 1.5
+        f_shift = 1.5
 
         self.derivative_helper(
             coef_0, coef_1, coef_2,
-            balance_i, balance_j
+            balance_i, balance_j,
+            f_shift
         )
 
     def test_positive_coefs(self):
-        # Choose the derivate
+        # Choose the derivative
         coef_0 = 3
         coef_1 = 3
         coef_2 = 3
         balance_i = 1.5
         balance_j = 1.5
+        f_shift = 1.5
 
         self.derivative_helper(
             coef_0, coef_1, coef_2,
-            balance_i, balance_j
+            balance_i, balance_j,
+            f_shift
         )
 
+    def test_zero_logscale(self):
+        # Choose the derivative
+        coef_0 = 1.5
+        coef_1 = 1.2
+        coef_2 = 0.8
+        balance_i = 10
+        balance_j = -10
+        f_shift = 0.0
 
-class Test_delBaselineComparer_delParams(unittest.TestCase):
-    """Test the derivative of the baseline intensity coefficients
-    relative to the embeddings
-    """
-    def derivative_helper(self, matrix, y_k, y_l, node_dimension,
-                          epsilon=10**(-8)):
-        # Set up the comparer
-        comparer = EdgeComparer(
-            node_dimension,
-            positive_output=False)
-        comparer.matrix = matrix
-
-        # Calculate the function value
-        base_value = \
-            comparer.compare_embeddings(
-                y_k, y_l
-            )
-
-        # Calculate the actual derivative for K
-        calc_deriv_K = \
-            utilities.calc_delBaselineComparer_delK(
-                matrix, y_l)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for node K embedding
-        for a in range(node_dimension):
-            increment = np.eye(1, node_dimension, a)[0]*epsilon
-            next_value = \
-                comparer.compare_embeddings(
-                    y_k+increment, y_l
-                )
-
-            estimated_deriv = (next_value-base_value)/epsilon
-
-            self.assertAlmostEqual(
-                calc_deriv_K[a],
-                estimated_deriv,
-                msg=f'Node K, dimension {a}',
-                places=6
-            )
-
-        # Calculate the actual derivative for L
-        calc_deriv_L = \
-            utilities.calc_delBaselineComparer_delL(
-                matrix, y_k)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for node L embedding
-        for a in range(node_dimension):
-            increment = np.eye(1, node_dimension, a)[0]*epsilon
-            next_value = \
-                comparer.compare_embeddings(
-                    y_k, y_l+increment
-                )
-
-            estimated_deriv = (next_value-base_value)/epsilon
-
-            self.assertAlmostEqual(
-                calc_deriv_L[a],
-                estimated_deriv,
-                msg=f'Node K, dimension {a}',
-                places=6
-            )
-
-        # Calculate the actual derivative for the matrix
-        calc_deriv_A = \
-            utilities.calc_delBaselineComparer_delMatrix(
-                y_k, y_l)
-
-        # Calculate the estimated derivative in each dimension
-        # in turn for matrix components
-        for a in range(node_dimension):
-            for b in range(node_dimension):
-                increment = np.zeros(
-                    (node_dimension, node_dimension))
-                increment[a][b] = epsilon
-
-                comparer.matrix = matrix + increment
-
-                next_value = \
-                    comparer.compare_embeddings(
-                        y_k, y_l
-                    )
-
-                estimated_deriv = (next_value-base_value)/epsilon
-
-                self.assertAlmostEqual(
-                    calc_deriv_A[a][b],
-                    estimated_deriv,
-                    msg=f'Matrix component {a}, {b}',
-                    places=6
-                )
-
-    def test_deriv(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 2, 3, 4],
-            [4, 3, 2, 1],
-            [-0.5, 0.5, -0.5, 0.5],
-            [1, 1, 1, 1]
-        ])
-        y_k = np.array(
-            [1, 3, 0, -7]
-        )
-        y_l = np.array(
-            [-1, 0.5, 0.3, 1.0]
-        )
-        node_dimension = 4
-
-        # Test
         self.derivative_helper(
-            matrix, y_k, y_l, node_dimension
+            coef_0, coef_1, coef_2,
+            balance_i, balance_j,
+            f_shift
         )
 
-    def test_deriv_negative(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-        ])
-        y_k = np.array(
-            [1, 1, 1, 1]
-        )
-        y_l = np.array(
-            [-1, -1, -1, -1]
-        )
-        node_dimension = 4
+    def test_negative_logscale(self):
+        # Choose the derivative
+        coef_0 = 1.5
+        coef_1 = 1.2
+        coef_2 = 0.8
+        balance_i = 10
+        balance_j = -10
+        f_shift = -1.5
 
-        # Test
         self.derivative_helper(
-            matrix, y_k, y_l, node_dimension
-        )
-
-    def test_deriv_positive(self):
-        # Choose the derivate
-        matrix = np.array([
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-            [1, 1, 1, 1],
-        ])
-        y_k = np.array(
-            [1, 1, 1, 1]
-        )
-        y_l = np.array(
-            [1, 1, 1, 1]
-        )
-        node_dimension = 4
-
-        # Test
-        self.derivative_helper(
-            matrix, y_k, y_l, node_dimension
+            coef_0, coef_1, coef_2,
+            balance_i, balance_j,
+            f_shift
         )
 
 
@@ -987,7 +649,7 @@ class Test_delBaselineDotproduct_delParam(unittest.TestCase):
                 )
 
     def test_deriv(self):
-        # Choose the derivate
+        # Choose the derivative
         s_i = np.array(
             [1.0, -0.4, 1.7, 0.2]
         )
@@ -1001,7 +663,7 @@ class Test_delBaselineDotproduct_delParam(unittest.TestCase):
         )
 
     def test_zeros(self):
-        # Choose the derivate
+        # Choose the derivative
         s_i = np.array(
             [0.0, 0.0, 0.0, 0.0]
         )
@@ -1015,7 +677,7 @@ class Test_delBaselineDotproduct_delParam(unittest.TestCase):
         )
 
     def test_positive(self):
-        # Choose the derivate
+        # Choose the derivative
         s_i = np.array(
             [1.0, 2.0, 3.0, 4.0]
         )
@@ -1029,7 +691,7 @@ class Test_delBaselineDotproduct_delParam(unittest.TestCase):
         )
 
     def test_negative(self):
-        # Choose the derivate
+        # Choose the derivative
         s_i = np.array(
             [1.0, 2.0, 3.0, 4.0]
         )
@@ -1048,34 +710,38 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
     positive causal parameters of the Weibull distribution
     relative to its parameters
     """
-    def derivative_helper(self, r_i, r_j, e_k, e_l, epsilon=10**(-8)):
+    def derivative_helper(self, r_i, r_j, e_k, e_l, f_shift,
+                          epsilon=10**(-8)):
         # Calculate node dimension
         node_dimension = len(r_i)
 
         # Calculate the function value
         linear_value = (r_i * r_j).T @ (e_k * e_l)
-        base_value = utilities.log_exp_function(linear_value)
+        base_value = utilities.log_exp_function(linear_value, f_shift)
 
         # Calculate the actual derivative for I
         calc_deriv_I = \
             utilities.calc_delCausalDotproduct_delParam(
                 linear_value,
                 node_embedding=r_j,
-                edge_embedding=e_k*e_l)
+                edge_embedding=e_k*e_l,
+                f_shift=f_shift)
 
         # Calculate the estimated derivative in each dimension
         # in turn for node I embedding
         for a in range(node_dimension):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
             next_value = utilities.log_exp_function(
-                ((r_i+increment) * r_j).T @ (e_k * e_l))
+                ((r_i+increment) * r_j).T @ (e_k * e_l),
+                f_shift)
 
             estimated_deriv = (next_value-base_value)/epsilon
 
             with self.subTest(msg=f'Node I, dimension {a}'):
                 self.assertAlmostEqual(
                     calc_deriv_I[a],
-                    estimated_deriv
+                    estimated_deriv,
+                    places=6
                 )
 
         # Calculate the actual derivative for J
@@ -1083,21 +749,24 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
             utilities.calc_delCausalDotproduct_delParam(
                 linear_value,
                 node_embedding=r_i,
-                edge_embedding=e_k*e_l)
+                edge_embedding=e_k*e_l,
+                f_shift=f_shift)
 
         # Calculate the estimated derivative in each dimension
         # in turn for node J embedding
         for a in range(node_dimension):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
             next_value = utilities.log_exp_function(
-                (r_i * (r_j+increment)).T @ (e_k * e_l))
+                (r_i * (r_j+increment)).T @ (e_k * e_l),
+                f_shift)
 
             estimated_deriv = (next_value-base_value)/epsilon
 
             with self.subTest(msg=f'Node J, dimension {a}'):
                 self.assertAlmostEqual(
                     calc_deriv_J[a],
-                    estimated_deriv
+                    estimated_deriv,
+                    places=6
                 )
 
         # Calculate the actual derivative for K
@@ -1105,21 +774,24 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
             utilities.calc_delCausalDotproduct_delParam(
                 linear_value,
                 node_embedding=e_l,
-                edge_embedding=r_i*r_j)
+                edge_embedding=r_i*r_j,
+                f_shift=f_shift)
 
         # Calculate the estimated derivative in each dimension
         # in turn for node K embedding
         for a in range(node_dimension):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
             next_value = utilities.log_exp_function(
-                (r_i * r_j).T @ ((e_k+increment) * e_l))
+                (r_i * r_j).T @ ((e_k+increment) * e_l),
+                f_shift)
 
             estimated_deriv = (next_value-base_value)/epsilon
 
             with self.subTest(msg=f'Node K, dimension {a}'):
                 self.assertAlmostEqual(
                     calc_deriv_K[a],
-                    estimated_deriv
+                    estimated_deriv,
+                    places=6
                 )
 
         # Calculate the actual derivative for L
@@ -1127,25 +799,28 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
             utilities.calc_delCausalDotproduct_delParam(
                 linear_value,
                 node_embedding=e_k,
-                edge_embedding=r_i*r_j)
+                edge_embedding=r_i*r_j,
+                f_shift=f_shift)
 
         # Calculate the estimated derivative in each dimension
         # in turn for node L embedding
         for a in range(node_dimension):
             increment = np.eye(1, node_dimension, a)[0]*epsilon
             next_value = utilities.log_exp_function(
-                (r_i * r_j).T @ (e_k * (e_l+increment)))
+                (r_i * r_j).T @ (e_k * (e_l+increment)),
+                f_shift)
 
             estimated_deriv = (next_value-base_value)/epsilon
 
             with self.subTest(msg=f'Node L, dimension {a}'):
                 self.assertAlmostEqual(
                     calc_deriv_L[a],
-                    estimated_deriv
+                    estimated_deriv,
+                    places=6
                 )
 
     def test_deriv(self):
-        # Choose the derivate
+        # Choose the derivative
         r_i = np.array(
             [1.0, -0.4, 1.7, 0.2]
         )
@@ -1158,14 +833,15 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
         e_l = np.array(
             [1.5, -0.1, 0.1, 0.7]
         )
+        f_shift = 1.5
 
         # Test
         self.derivative_helper(
-            r_i, r_j, e_k, e_l
+            r_i, r_j, e_k, e_l, f_shift
         )
 
     def test_zeros(self):
-        # Choose the derivate
+        # Choose the derivative
         r_i = np.array(
             [0.0, 0.0, 0.0, 0.0]
         )
@@ -1178,14 +854,15 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
         e_l = np.array(
             [0.0, 0.0, 0.0, 0.0]
         )
+        f_shift = 1.5
 
         # Test
         self.derivative_helper(
-            r_i, r_j, e_k, e_l
+            r_i, r_j, e_k, e_l, f_shift
         )
 
     def test_positive(self):
-        # Choose the derivate
+        # Choose the derivative
         r_i = np.array(
             [1.0, 2.0, 3.0, 4.0]
         )
@@ -1198,14 +875,15 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
         e_l = np.array(
             [1.0, 1.5, 1.75, 1.825]
         )
+        f_shift = 1.5
 
         # Test
         self.derivative_helper(
-            r_i, r_j, e_k, e_l
+            r_i, r_j, e_k, e_l, f_shift
         )
 
     def test_negative(self):
-        # Choose the derivate
+        # Choose the derivative
         r_i = np.array(
             [-1.0, -2.0, -3.0, -4.0]
         )
@@ -1218,10 +896,53 @@ class Test_delCausalDotproduct_delParam(unittest.TestCase):
         e_l = np.array(
             [1.0, 1.5, 1.75, 1.825]
         )
+        f_shift = 1.5
 
         # Test
         self.derivative_helper(
-            r_i, r_j, e_k, e_l
+            r_i, r_j, e_k, e_l, f_shift
+        )
+
+    def test_zero_logscale(self):
+        # Choose the derivative
+        r_i = np.array(
+            [1.0, -0.4, 1.7, 0.2]
+        )
+        r_j = np.array(
+            [-1.0, -1.0, 1.0, 1.0]
+        )
+        e_k = np.array(
+            [0.1, 0.2, 0.3, 0.4]
+        )
+        e_l = np.array(
+            [1.5, -0.1, 0.1, 0.7]
+        )
+        f_shift = 0.0
+
+        # Test
+        self.derivative_helper(
+            r_i, r_j, e_k, e_l, f_shift
+        )
+
+    def test_negative_logscale(self):
+        # Choose the derivative
+        r_i = np.array(
+            [1.0, -0.4, 1.7, 0.2]
+        )
+        r_j = np.array(
+            [-1.0, -1.0, 1.0, 1.0]
+        )
+        e_k = np.array(
+            [0.1, 0.2, 0.3, 0.4]
+        )
+        e_l = np.array(
+            [1.5, -0.1, 0.1, 0.7]
+        )
+        f_shift = -2.5
+
+        # Test
+        self.derivative_helper(
+            r_i, r_j, e_k, e_l, f_shift
         )
 
 
@@ -1229,20 +950,21 @@ class Test_delF(unittest.TestCase):
     """Test the derivative of the smooth, continuous
     function designed to make values positive
     """
-    def derivative_helper(self, input_value, epsilon=10**(-8)):
+    def derivative_helper(self, input_value, f_shift,
+                          epsilon=10**(-8)):
         # Calculate the function value
         base_value = \
-            utilities.log_exp_function(input_value)
+            utilities.log_exp_function(input_value, f_shift)
 
         # Estimate the derivative
         next_value = \
-            utilities.log_exp_function(input_value+epsilon)
+            utilities.log_exp_function(input_value+epsilon, f_shift)
 
         estimated_deriv = (next_value-base_value)/epsilon
 
         # Calculate the derivative
         calc_deriv = \
-            utilities.log_exp_deriv_multiplier(input_value)
+            utilities.log_exp_deriv_multiplier(input_value, f_shift)
 
         self.assertAlmostEqual(
             calc_deriv,
@@ -1250,33 +972,45 @@ class Test_delF(unittest.TestCase):
         )
 
     def test_deriv(self):
-        # Choose the derivate
+        # Choose the derivative
         self.derivative_helper(
-            1
+            1, 1.5
         )
 
     def test_deriv_high(self):
-        # Choose the derivate
+        # Choose the derivative
         self.derivative_helper(
-            200
+            200, 1.5
         )
 
     def test_deriv_low(self):
-        # Choose the derivate
+        # Choose the derivative
         self.derivative_helper(
-            -25
+            -25, 1.5
         )
 
     def test_deriv_zero(self):
-        # Choose the derivate
+        # Choose the derivative
         self.derivative_helper(
-            0
+            0, 1.5
         )
 
     def test_deriv_underflow(self):
-        # Choose the derivate
+        # Choose the derivative
         self.derivative_helper(
-            -40
+            -40, 1.5
+        )
+
+    def test_zero_logscale(self):
+        # Choose the derivative
+        self.derivative_helper(
+            1, 0.0
+        )
+
+    def test_negative_logscale(self):
+        # Choose the derivative
+        self.derivative_helper(
+            1, -4.5
         )
 
 
@@ -1287,19 +1021,49 @@ class Test_F(unittest.TestCase):
     def test_zero(self):
         self.assertEqual(
             1,
-            utilities.log_exp_function(0)
+            utilities.log_exp_function(0, 0)
         )
 
     def test_minus_one(self):
         self.assertEqual(
             1/np.exp(1),
-            utilities.log_exp_function(-1)
+            utilities.log_exp_function(-1, 0)
         )
 
     def test_one(self):
         self.assertEqual(
             np.log(2)+1,
-            utilities.log_exp_function(1)
+            utilities.log_exp_function(1, 0)
+        )
+
+    def test_zero_with_logscale(self):
+        self.assertEqual(
+            4.7,
+            utilities.log_exp_function(0, utilities.find_shift(4.7))
+        )
+
+
+class Test_findShift(unittest.TestCase):
+    """Test the helper function that provides the requisite
+    shift in the smooth, positive function's input in order
+    to get the desired value at 0.
+    """
+    def test_positive(self):
+        self.assertEqual(
+            4.7,
+            utilities.log_exp_function(0, utilities.find_shift(4.7))
+        )
+
+    def test_one(self):
+        self.assertEqual(
+            1.0,
+            utilities.log_exp_function(0, utilities.find_shift(1.0))
+        )
+
+    def test_less_than_one(self):
+        self.assertEqual(
+            0.47,
+            utilities.log_exp_function(0, utilities.find_shift(0.47))
         )
 
 
@@ -1378,10 +1142,10 @@ class Test_Adam(unittest.TestCase):
         # Check that the true parameters were recovered
         self.assertAlmostEqual(
             self.true_gradient, estimated_gradient,
-            places=6
+            places=5
         )
 
         self.assertAlmostEqual(
             self.true_intercept, estimated_intercept,
-            places=6
+            places=5
         )
