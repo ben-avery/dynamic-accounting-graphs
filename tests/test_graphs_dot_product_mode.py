@@ -40,6 +40,8 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
         self.graph = graphs.DynamicAccountingGraph(
             accounts=[sales_account, debtors_account, bank_account],
+            average_balances=[1,1,1],
+            average_weight=1,
             node_dimension=4
         )
 

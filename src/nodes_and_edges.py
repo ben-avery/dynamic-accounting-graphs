@@ -2,7 +2,11 @@
 """
 import numpy as np
 
-from utilities import log_exp_function, adam_update
+from utilities import (
+    log_exp_function, log_exp_inverse, find_log_exp_shift,
+    lin_exp_function, lin_exp_inverse, find_lin_exp_shift,
+    adam_update
+)
 
 
 class Node():
@@ -10,6 +14,8 @@ class Node():
     learning functions
     """
     def __init__(self, name, opening_balance, dimension,
+                 average_balance, average_weight,
+                 epsilon=0.0001,
                  causal_learning_rate=0.001,
                  causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
@@ -25,6 +31,12 @@ class Node():
             opening_balance (float): The monetary value accumulated in the
                 associated account at the start of the period
             dimension (int): The dimension of the node embeddings
+            average_balance (float): The daily average opening monetary value
+                accumulated in the associated account for the whole period
+            average_weight (float): The daily average excitation from the
+                initialised Weibull distributions across the whole period
+            epsilon (float, optional): The value below which intensity is trivial.
+                Defaults to 0.0001.
             causal_learning_rate (float, optional): The learning rate for the
                 optimisation of causal parameters. Defaults to 0.001.
             causal_learning_boost (float, optional): Multiple to boost the causal
@@ -67,27 +79,35 @@ class Node():
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
         # Create the embeddings of the node
+        f_shift = find_log_exp_shift(epsilon)
+        if log_exp_inverse(0.5, f_shift) < 0:
+            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(-log_exp_inverse(0.5, f_shift)))
+            spontaneous_base_scaling_dest = -spontaneous_base_scaling_source
+        else:
+            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(log_exp_inverse(0.5, f_shift)))
+            spontaneous_base_scaling_dest = spontaneous_base_scaling_source
+
+        print('spont source', spontaneous_base_scaling_source)
+        print('spont dest', spontaneous_base_scaling_dest)
+
         self.spontaneous_source_0 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=1/3,
-                spontaneous=True,
+                initialisation_scaling=spontaneous_base_scaling_source,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
         self.spontaneous_source_1 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.001/3,
-                spontaneous=True,
+                initialisation_scaling=spontaneous_base_scaling_source/average_balance,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
         self.spontaneous_source_2 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.001/3,
-                spontaneous=True,
+                initialisation_scaling=spontaneous_base_scaling_source,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
@@ -95,48 +115,76 @@ class Node():
         self.spontaneous_dest_0 = \
             NodeEmbedding(
                 dimension=dimension,
-                spontaneous=True,
+                initialisation_scaling=spontaneous_base_scaling_dest,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
         self.spontaneous_dest_1 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.001,
-                spontaneous=True,
+                initialisation_scaling=spontaneous_base_scaling_dest,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
         self.spontaneous_dest_2 = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=0.001,
-                spontaneous=True,
+                initialisation_scaling=spontaneous_base_scaling_dest/average_balance,
                 learning_rate=self.spontaneous_learning_rate,
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
 
+
+        g_shift = find_lin_exp_shift(13/2)
+        if lin_exp_inverse(15/2, g_shift) < 0:
+            alpha_scaling_source = (-lin_exp_inverse(15/2, g_shift)/dimension)**(0.25)
+            alpha_scaling_dest = -alpha_scaling_source
+        else:
+            alpha_scaling_source = (lin_exp_inverse(15/2, g_shift)/dimension)**(0.25)
+            alpha_scaling_dest = alpha_scaling_source
+
+        g_shift = find_lin_exp_shift(2)
+        if lin_exp_inverse(3, g_shift) < 0:
+            beta_scaling_source = (-lin_exp_inverse(3, g_shift)/dimension)**(0.25)
+            beta_scaling_dest = -beta_scaling_source
+        else:
+            beta_scaling_source = (lin_exp_inverse(3, g_shift)/dimension)**(0.25)
+            beta_scaling_dest = beta_scaling_source
+
+        f_shift = find_log_exp_shift(epsilon)
+        if lin_exp_inverse(1/average_weight, f_shift) < 0:
+            weight_scaling_source = (-lin_exp_inverse(1/average_weight, f_shift)/dimension)**(0.25)
+            weight_scaling_dest = -weight_scaling_source
+        else:
+            weight_scaling_source = (lin_exp_inverse(1/average_weight, f_shift)/dimension)**(0.25)
+            weight_scaling_dest = weight_scaling_source
+
+        print('alpha source', alpha_scaling_source)
+        print('alpha dest', alpha_scaling_dest)
+        print('beta source', beta_scaling_source)
+        print('beta dest', beta_scaling_dest)
+        print('weight source', weight_scaling_source)
+        print('weight dest', weight_scaling_dest)
+
+
         self.causal_excitor_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=alpha_scaling_source,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitor_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=1,
-                spontaneous=False,
+                initialisation_scaling=beta_scaling_source,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitor_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=weight_scaling_source,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -144,24 +192,21 @@ class Node():
         self.causal_excitor_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=alpha_scaling_dest,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitor_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=1,
-                spontaneous=False,
+                initialisation_scaling=beta_scaling_dest,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitor_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=weight_scaling_dest,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -169,24 +214,21 @@ class Node():
         self.causal_excitee_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=alpha_scaling_source,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitee_source_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=1,
-                spontaneous=False,
+                initialisation_scaling=beta_scaling_source,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitee_source_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=weight_scaling_source,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -194,24 +236,21 @@ class Node():
         self.causal_excitee_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=alpha_scaling_dest,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.alpha_regularisation_rate
             )
         self.causal_excitee_dest_beta = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=1,
-                spontaneous=False,
+                initialisation_scaling=beta_scaling_dest,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.beta_regularisation_rate
             )
         self.causal_excitee_dest_weight = \
             NodeEmbedding(
                 dimension=dimension,
-                initialisation_scaling=10,
-                spontaneous=False,
+                initialisation_scaling=weight_scaling_dest,
                 learning_rate=self.causal_learning_rate,
                 regularisation_rate=self.weight_regularisation_rate
             )
@@ -367,19 +406,16 @@ class NodeEmbedding():
     """A class to contain the source and destination node
     embedding for a particular node
     """
-    def __init__(self, dimension, initialisation_scaling=1, spontaneous=True,
+    def __init__(self, dimension, initialisation_scaling=1,
                  learning_rate=0.001, regularisation_rate=0.01):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings.
             initialisation_scaling (float, optional): Scale the random
-                initialisation so that the dot product of two such embeddings
-                has an expected value equal to initialisation_scaling.
+                initialisation so that the expectation of each component
+                is equal to this value.
                 Defaults to 1.
-            spontaneous (bool, optional): Whether the node is spontaneous or
-                causal (for use in initialisation scaling).
-                Defaults to True.
             learning_rate (float, optional): The learning rate for the
                 gradient ascent algorithm. Defaults to 0.001.
             regularisation_rate (float, optional): The weight towards the
@@ -392,11 +428,7 @@ class NodeEmbedding():
         self.regularisation_rate = regularisation_rate
 
         # Initialise the embeddings randomly
-        if spontaneous:
-            max_value = 2*np.sqrt(initialisation_scaling/self.dimension)
-        else:
-            max_value = 2*((initialisation_scaling/self.dimension)**0.25)
-        self.value = np.random.uniform(0, max_value, self.dimension)
+        self.value = np.random.uniform(0, 2*initialisation_scaling, self.dimension)
 
         # Create attributes to track gradient updates
         self.pending_updates = np.zeros(self.dimension)
@@ -492,12 +524,15 @@ class EdgeComparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
-    def __init__(self, dimension, f_shift=None, positive_output=True, min_at=0):
+    def __init__(self, dimension, f_shift=None, g_shift=None, positive_output=True, min_at=0):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings
             f_shift (float): Shift the function by to achieve a certain
+                value at zero. (Only for positive_output=True).
+                Defaults to None.
+            g_shift (float): Shift the function by to achieve a certain
                 value at zero. (Only for positive_output=True).
                 Defaults to None.
             positive_output (bool, optional): Whether a function should
@@ -526,12 +561,18 @@ class EdgeComparer():
 
             # Record the scaling to be applied to the smooth,
             # positive function
-            if f_shift is None:
-                raise ValueError(
-                    'f_shift must be provided if '
-                    'positive_output is True'
-                )
             self.f_shift = f_shift
+            self.g_shift = g_shift
+            if f_shift is None and g_shift is None:
+                raise ValueError(
+                    'One of f_shift and g_shift must be '
+                    'provided if positive_output is True'
+                )
+            if f_shift is not None and g_shift is not None:
+                raise ValueError(
+                    'At most one of f_shift and g_shift must be '
+                    'provided if positive_output is True'
+                )
 
     #@profile
     def compare_embeddings(self, e_i, e_j):
@@ -556,6 +597,9 @@ class EdgeComparer():
 
             # Apply the piecewise function to make the output
             # certainly positive
-            return log_exp_function(linear_value, self.f_shift) + self.min_at
+            if self.f_shift is None:
+                return lin_exp_function(linear_value, self.g_shift) + self.min_at
+            else:
+                return log_exp_function(linear_value, self.f_shift) + self.min_at
         else:
             return linear_value
