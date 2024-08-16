@@ -80,15 +80,12 @@ class Node():
 
         # Create the embeddings of the node
         f_shift = find_log_exp_shift(epsilon)
-        if log_exp_inverse(0.5, f_shift) < 0:
-            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(-log_exp_inverse(0.5, f_shift)))
+        if log_exp_inverse(0.001, f_shift) < 0:
+            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(-log_exp_inverse(0.001, f_shift)))
             spontaneous_base_scaling_dest = -spontaneous_base_scaling_source
         else:
-            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(log_exp_inverse(0.5, f_shift)))
+            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(log_exp_inverse(0.001, f_shift)))
             spontaneous_base_scaling_dest = spontaneous_base_scaling_source
-
-        print('spont source', spontaneous_base_scaling_source)
-        print('spont dest', spontaneous_base_scaling_dest)
 
         self.spontaneous_source_0 = \
             NodeEmbedding(
@@ -158,13 +155,6 @@ class Node():
         else:
             weight_scaling_source = (lin_exp_inverse(1/average_weight, f_shift)/dimension)**(0.25)
             weight_scaling_dest = weight_scaling_source
-
-        print('alpha source', alpha_scaling_source)
-        print('alpha dest', alpha_scaling_dest)
-        print('beta source', beta_scaling_source)
-        print('beta dest', beta_scaling_dest)
-        print('weight source', weight_scaling_source)
-        print('weight dest', weight_scaling_dest)
 
 
         self.causal_excitor_source_alpha = \
