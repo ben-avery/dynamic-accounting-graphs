@@ -241,7 +241,7 @@ def calc_delBaselineDotproduct_delParam(parameter):
 
 
 def calc_delCausalDotproduct_delParam(
-        linear_value, node_embedding, edge_embedding, f_shift):
+        linear_value, node_embedding, edge_embedding, f_shift=None, g_shift=None):
     """A partial derivative of the causal parameters
     by the relevant embeddings
 
@@ -250,13 +250,18 @@ def calc_delCausalDotproduct_delParam(
         node_embedding (np.array): The node embedding
         edge_embedding (np.array): The edge embedding
         f_shift (float): The f_shift for the log_exp function.
+        f_shift (float): The g_shift for the lin_exp function.
 
     Returns:
         np.array: The partial derivative
     """
 
-    return \
-        log_exp_deriv_multiplier(linear_value, f_shift) * (node_embedding*edge_embedding)
+    if f_shift is None:       
+        return \
+            lin_exp_deriv_multiplier(linear_value, g_shift) * (node_embedding*edge_embedding)
+    else:
+        return \
+            log_exp_deriv_multiplier(linear_value, f_shift) * (node_embedding*edge_embedding)
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -272,15 +277,14 @@ def log_exp_function(linear_value, f_shift):
             that f(0) is a fixed value.
 
     Returns:
-        float: The partial derivative of the smooth, continuous
-            function with respect to the linear function
+        float: The output of the smooth, continuous function
     """
 
     # Shift the linear value
     shifted_linear_value = linear_value + f_shift
 
     # The smooth function is defined piecewise
-    if shifted_linear_value < -30:
+    if shifted_linear_value <= -30:
         # Lower limit for exponential function to prevent underflow
         return 0
     elif shifted_linear_value < 0:
@@ -291,7 +295,31 @@ def log_exp_function(linear_value, f_shift):
         return np.log(shifted_linear_value + 1) + 1
 
 
-def find_shift(value_at_zero):
+def log_exp_inverse(output_value, f_shift):
+    """An inverse of log_exp_function
+
+    Args:
+        output_value (float): The output of the log_exp_function
+        f_shift (float): Shift the original function by f_shift so
+            that f(0) is a fixed value.
+
+    Returns:
+        float: The inverse of the smooth, continuous function
+    """
+
+    # The smooth function is defined piecewise
+    if output_value == 0:
+        # Lower limit for exponential function to prevent underflow
+        return -30 - f_shift
+    elif output_value < 1:
+        # Exponential portion
+        return np.log(output_value) - f_shift
+    else:
+        # Logarithmic portion
+        return np.exp(output_value - 1) - 1 - f_shift
+
+
+def find_log_exp_shift(value_at_zero):
     """Return the f_shift required to get
     log_exp_function(0, f_shift)=value_at_zero.
 
@@ -344,6 +372,116 @@ def log_exp_deriv_multiplier(linear_value, f_shift):
     else:
         # Logarithmic portion
         return 1 / (shifted_linear_value + 1)
+
+
+@functools.lru_cache(maxsize=128, typed=False)
+def lin_exp_function(linear_value, g_shift):
+    """A helper function which gives the smooth, continuous
+    function that ensures parameters are positive.
+
+    Args:
+        linear_value (float): The value of the parameter before
+            being passed through the smooth, continuous function
+            to ensure it is positive
+        g_shift (float): Shift the function by g_shift so
+            that g(0) is a fixed value.
+
+    Returns:
+        float: The output of the smooth, continuous function
+    """
+
+    # Shift the linear value
+    shifted_linear_value = linear_value + g_shift
+
+    # The smooth function is defined piecewise
+    if shifted_linear_value <= -30:
+        # Lower limit for exponential function to prevent underflow
+        return 0
+    elif shifted_linear_value < 0:
+        # Exponential portion
+        return np.exp(shifted_linear_value)
+    else:
+        # Linear portion
+        return shifted_linear_value + 1
+
+
+def lin_exp_inverse(output_value, g_shift):
+    """An inverse of log_exp_function
+
+    Args:
+        output_value (float): The output of the log_exp_function
+        g_shift (float): Shift the original function by g_shift so
+            that f(0) is a fixed value.
+
+    Returns:
+        float: The inverse of the smooth, continuous function
+    """
+
+    # The smooth function is defined piecewise
+    if output_value == 0:
+        # Lower limit for exponential function to prevent underflow
+        return -30 - g_shift
+    elif output_value < 1:
+        # Exponential portion
+        return np.log(output_value) - g_shift
+    else:
+        # Logarithmic portion
+        return output_value - 1 - g_shift
+
+
+def find_lin_exp_shift(value_at_zero):
+    """Return the g_shift required to get
+    lin_exp_function(0, g_shift)=value_at_zero.
+
+    Args:
+        value_at_zero (float): The value that lin_exp_function
+            should take at zero, with g_shift given by the return
+            of this function
+
+    Returns:
+        g_shift: The required shift
+    """
+    if value_at_zero > 1:
+        return value_at_zero - 1
+    else:
+        return np.log(value_at_zero)
+
+
+@functools.lru_cache(maxsize=128, typed=False)
+def lin_exp_deriv_multiplier(linear_value, g_shift):
+    """A helper function which gives the partial derivative
+    from the smooth, continuous function that ensures the
+    Weibull parameters and weight are positive.
+
+    Args:
+        linear_value (float): The value of the parameter before
+            being passed through the smooth, continuous function
+            to ensure it is positive
+        g_shift (float): Shift the function by g_shift so
+            that g(0) is a fixed value.
+
+    Returns:
+        float: The partial derivative of the smooth, continuous
+            function with respect to the linear function
+    """
+
+    # Shift the linear value
+    shifted_linear_value = linear_value + g_shift
+
+    # The smooth function is defined piecewise, and therefore
+    # its gradient has a different expression for positive and
+    # negative values
+    if shifted_linear_value < -30:
+        # Lower limit for exponential function to prevent underflow
+        # (but don't set to zero, otherwise gradient-based optimisers
+        # will get stuck)
+        return lin_exp_deriv_multiplier(-30, 0)
+    elif shifted_linear_value < 0:
+        # Exponential portion
+        return np.exp(shifted_linear_value)
+    else:
+        # Logarithmic portion
+        return 1
 
 
 def adam_update(

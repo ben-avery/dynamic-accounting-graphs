@@ -4,6 +4,73 @@
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+from initialise_params import find_average_balances, find_average_initial_weight
+from graphs import DynamicAccountingGraph
+
+
+class Account:
+    """A class to hold all the attributes of an account
+    """
+    def __init__(self, name, number, balance, mapping):
+        """Initialise the class
+
+        Args:
+            name (str): The name of the account
+            number (str): The unique identifier for the account
+            balance (float): The monetary balance on the account
+                at the start of the accounting period
+            mapping (str): The accounting concept to which the
+                account belongs (e.g. Revenue or Debtors)
+        """
+        self.name = name
+        self.number = number
+        self.balance = balance
+        self.mapping = mapping
+
+
+def generate_graph(raw_accounts, edges_by_day, last_day, node_dimension,
+                   graph_kwords={}):
+    """Create a graph with the appropriate accounts, initialisation
+    and hyperparameters
+
+    Args:
+        accounts (list): List of tuples, (name, number, balance, mapping)
+        edges_by_day (dict): A record of all the edges in the dynamic graph,
+            with the day number as the key, and a list of edges each given
+            as a tuple, (source_node, dest_node, weight)
+        last_day (int): The final day of the period (in case there are days
+            at the end of the period with no edges so they don't appear in
+            edges_by_day).
+        node_dimension (int): The dimension for the node embeddings
+        graph_kwords (dict, optional): Any keyword arguments to set the graph
+            hyperparameters. Defaults to {}.
+    """
+    accounts = [
+        Account(name, number, balance, mapping)
+        for name, number, balance, mapping in raw_accounts
+    ]
+
+    average_balances = find_average_balances(
+        opening_balances=[account_details[2] for account_details in raw_accounts],
+        edges_by_day=edges_by_day,
+        last_day=last_day
+    )
+
+    average_weight = find_average_initial_weight(
+        edges_by_day=edges_by_day,
+        last_day=last_day,
+        initial_alpha=8,
+        intial_beta=4
+    )
+
+    return DynamicAccountingGraph(
+        **graph_kwords,
+        accounts=accounts,
+        node_dimension=node_dimension,
+        average_balances=average_balances,
+        average_weight=average_weight
+    )
+
 
 def train(graph, edges_by_day, last_day, iterations=1500,
           plot_log_likelihood=True, use_tqdm=True,

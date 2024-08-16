@@ -14,7 +14,8 @@ from utilities import (
     calc_delBaselineIntensity_delTwo,
     calc_delCausalDotproduct_delParam,
     calc_delBaselineDotproduct_delParam,
-    log_exp_function, find_shift
+    log_exp_function, find_log_exp_shift,
+    lin_exp_function, find_lin_exp_shift
 )
 
 
@@ -22,6 +23,7 @@ class DynamicAccountingGraph():
     """Class for a Dynamic Accounting Graph
     """
     def __init__(self, accounts, node_dimension,
+                 average_balances, average_weight,
                  causal_learning_rate=0.01,
                  causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
@@ -69,19 +71,21 @@ class DynamicAccountingGraph():
         self.excitement_threshold = 0.0001
 
         # Set the scales for the smooth, positive functions
-        self.f_shift_spontaneous = find_shift(self.excitement_threshold)
-        self.f_shift_alpha = find_shift(1)
-        self.f_shift_beta = find_shift(0.5)
-        self.f_shift_weight = find_shift(self.excitement_threshold)
+        self.f_shift_spontaneous = find_log_exp_shift(self.excitement_threshold)
+        self.g_shift_alpha = find_lin_exp_shift(13/2)
+        self.g_shift_beta = find_lin_exp_shift(2)
+        self.f_shift_weight = find_log_exp_shift(self.excitement_threshold)
 
         # Create the nodes with random embeddings
         self.nodes = []
         self.node_dimension = node_dimension
-        for account in accounts:
+        for i, account in enumerate(accounts):
             node = Node(
                 name=account.name,
                 opening_balance=account.balance,
                 dimension=node_dimension,
+                average_balance=average_balances[i],
+                average_weight=average_weight,
                 causal_learning_rate=self.causal_learning_rate,
                 causal_learning_boost=self.causal_learning_boost,
                 alpha_regularisation_rate=self.alpha_regularisation_rate,
@@ -112,13 +116,13 @@ class DynamicAccountingGraph():
         )
         self.causal_comparer_alpha = EdgeComparer(
             dimension=self.node_dimension,
-            f_shift=self.f_shift_alpha,
+            g_shift=self.g_shift_alpha,
             positive_output=True,
             min_at=0.5
         )
         self.causal_comparer_beta = EdgeComparer(
             dimension=self.node_dimension,
-            f_shift=self.f_shift_beta,
+            g_shift=self.g_shift_beta,
             positive_output=True,
             min_at=1.0
         )
@@ -833,14 +837,14 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=r_j_alpha,
                     edge_embedding=excitee_kl_alpha,
-                    f_shift=self.f_shift_alpha
+                    g_shift=self.g_shift_alpha
                 )
             delBeta_delI = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=r_j_beta,
                     edge_embedding=excitee_kl_beta,
-                    f_shift=self.f_shift_beta
+                    g_shift=self.g_shift_beta
                 )
             delWeight_delI = \
                 calc_delCausalDotproduct_delParam(
@@ -855,14 +859,14 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=r_i_alpha,
                     edge_embedding=excitee_kl_alpha,
-                    f_shift=self.f_shift_alpha
+                    g_shift=self.g_shift_alpha
                 )
             delBeta_delJ = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=r_i_beta,
                     edge_embedding=excitee_kl_beta,
-                    f_shift=self.f_shift_beta
+                    g_shift=self.g_shift_beta
                 )
             delWeight_delJ = \
                 calc_delCausalDotproduct_delParam(
@@ -877,14 +881,14 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=e_l_alpha,
                     edge_embedding=excitor_ij_alpha,
-                    f_shift=self.f_shift_alpha
+                    g_shift=self.g_shift_alpha
                 )
             delBeta_delK = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=e_l_beta,
                     edge_embedding=excitor_ij_beta,
-                    f_shift=self.f_shift_beta
+                    g_shift=self.g_shift_beta
                 )
             delWeight_delK = \
                 calc_delCausalDotproduct_delParam(
@@ -899,14 +903,14 @@ class DynamicAccountingGraph():
                     linear_value=lin_val_alpha,
                     node_embedding=e_k_alpha,
                     edge_embedding=excitor_ij_alpha,
-                    f_shift=self.f_shift_alpha
+                    g_shift=self.g_shift_alpha
                 )
             delBeta_delL = \
                 calc_delCausalDotproduct_delParam(
                     linear_value=lin_val_beta,
                     node_embedding=e_k_beta,
                     edge_embedding=excitor_ij_beta,
-                    f_shift=self.f_shift_beta
+                    g_shift=self.g_shift_beta
                 )
             delWeight_delL = \
                 calc_delCausalDotproduct_delParam(

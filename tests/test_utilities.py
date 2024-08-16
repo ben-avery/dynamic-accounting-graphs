@@ -1039,11 +1039,54 @@ class Test_F(unittest.TestCase):
     def test_zero_with_logscale(self):
         self.assertEqual(
             4.7,
-            utilities.log_exp_function(0, utilities.find_shift(4.7))
+            utilities.log_exp_function(0, utilities.find_log_exp_shift(4.7))
         )
 
 
-class Test_findShift(unittest.TestCase):
+
+class Test_InvF(unittest.TestCase):
+    """Test the inverse of the smooth, continuous function
+    """
+    def inverse_helper(self, value, f_shift=1):
+        self.assertAlmostEqual(
+            value,
+            utilities.log_exp_function(
+                utilities.log_exp_inverse(value, f_shift),
+                f_shift)
+        )
+
+    def test_zero(self):
+        self.inverse_helper(0)
+
+    def test_half(self):
+        self.inverse_helper(0.5)
+
+    def test_one(self):
+        self.inverse_helper(1)
+
+    def test_zero_with_logscale(self):
+        self.inverse_helper(0, 1.5)
+
+    def test_large(self):
+        self.inverse_helper(100)
+
+    def test_small(self):
+        self.inverse_helper(0.0001)
+
+    def test_large_shift1(self):
+        self.inverse_helper(1.5, 100)
+
+    def test_small_shift1(self):
+        self.inverse_helper(1.5, 0.0001)
+
+    def test_large_shift2(self):
+        self.inverse_helper(0.5, 100)
+
+    def test_small_shift2(self):
+        self.inverse_helper(0.5, 0.0001)
+
+
+class Test_findLogExpShift(unittest.TestCase):
     """Test the helper function that provides the requisite
     shift in the smooth, positive function's input in order
     to get the desired value at 0.
@@ -1051,19 +1094,19 @@ class Test_findShift(unittest.TestCase):
     def test_positive(self):
         self.assertEqual(
             4.7,
-            utilities.log_exp_function(0, utilities.find_shift(4.7))
+            utilities.log_exp_function(0, utilities.find_log_exp_shift(4.7))
         )
 
     def test_one(self):
         self.assertEqual(
             1.0,
-            utilities.log_exp_function(0, utilities.find_shift(1.0))
+            utilities.log_exp_function(0, utilities.find_log_exp_shift(1.0))
         )
 
     def test_less_than_one(self):
         self.assertEqual(
             0.47,
-            utilities.log_exp_function(0, utilities.find_shift(0.47))
+            utilities.log_exp_function(0, utilities.find_log_exp_shift(0.47))
         )
 
 
