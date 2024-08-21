@@ -1,7 +1,7 @@
 """Main module for the Dynamic Accounting Graph class
 """
 from scipy.stats import poisson
-from numpy import log
+from numpy import log, exp
 
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
 from excitement import Excitement
@@ -543,7 +543,7 @@ class DynamicAccountingGraph():
 
         return intensity
 
-    def edge_probability(self, i, j, count,
+    def edge_log_probability(self, i, j, count,
                          spontaneous_on=True):
         """The probability that a particular edge occured a
         given number of times on this day.
@@ -568,13 +568,18 @@ class DynamicAccountingGraph():
         self.gradient_log['l'] = j
         self.gradient_log['count'] = count
 
-        # Calculate the probability using a Poisson
+        # Calculate the log probability using a Poisson
         # distribution with the intensity as the mean
-        probability = poisson.pmf(
+        log_probability = poisson._logpmf(
             k=count,
             mu=self.edge_intensity(
                 i, j, spontaneous_on=spontaneous_on)
         )
+
+        # Get the probability, truncating at underflows
+        if log_probability < -30:
+            log_probability = -30
+        probability = exp(log_probability)
 
         # Record the probability for gradient ascent
         self.gradient_log['P'] = probability
@@ -584,7 +589,7 @@ class DynamicAccountingGraph():
         # the entire period has been added to the graph)
         self.calculate_derivatives()
 
-        return probability
+        return log_probability
 
     def day_log_probability(self, spontaneous_on=True):
         """The log probability of all the edges that have
@@ -619,15 +624,11 @@ class DynamicAccountingGraph():
                 # Take the log of the probability of
                 # that edge occurring that number of
                 # times, and add to the running total
-                log_probability = log(
-                    max(
-                        0.00001,
-                        self.edge_probability(
-                            i, j, count,
-                            spontaneous_on=spontaneous_on
-                        )
+                log_probability = \
+                    self.edge_log_probability(
+                        i, j, count,
+                        spontaneous_on=spontaneous_on
                     )
-                )
                 total_log_probability += log_probability
 
         return total_log_probability
