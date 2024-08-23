@@ -24,6 +24,7 @@ class DynamicAccountingGraph():
     """
     def __init__(self, accounts, node_dimension,
                  average_balances, average_weight,
+                 possible_edges,
                  causal_learning_rate=0.01,
                  causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
@@ -37,6 +38,13 @@ class DynamicAccountingGraph():
             accounts (list): A list of Account object (with attributes 
                 for name, balance, number and mapping)
             node_dimension (int): The dimension for the node embeddings
+            average_balances (list): A list of the daily average balances
+                for each account
+            average_weight (float): The daily average weight contributed
+                by causal excitation to any potential excitee from the
+                initialisation parameters of the causal parts of the model
+            possible_edges (set): A set of tuple pairs, (i, j), for all the
+                edges, i -> j, that occured in the period.
             causal_learning_rate (float, optional): The learning rate for the
                 optimisation of causal parameters. Defaults to 0.001.
             causal_learning_boost (float, optional): Multiple to boost the causal
@@ -101,6 +109,8 @@ class DynamicAccountingGraph():
 
             self.nodes.append(node)
         self.count_nodes = len(self.nodes)
+
+        self.possible_edges = possible_edges
 
         # Create an edge embedder which turns two
         # node embeddings into an embedding for an
@@ -172,6 +182,10 @@ class DynamicAccountingGraph():
             for excitor_j in range(self.count_nodes):
                 if excitor_i == excitor_j:
                     # Don't allow self-loops
+                    continue
+                if (excitor_i, excitor_j) not in self.possible_edges:
+                    # No need to calculate values with excitors that
+                    # didn't occur in the period
                     continue
 
                 # Get the node embedding

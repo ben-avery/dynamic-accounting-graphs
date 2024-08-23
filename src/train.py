@@ -63,12 +63,19 @@ def generate_graph(raw_accounts, edges_by_day, last_day, node_dimension,
         intial_beta=4
     )
 
+    possible_edges = set()
+    for day in sorted(list(edges_by_day.keys())):
+        edges = edges_by_day[day]
+        for i, j, value in edges:
+            possible_edges.add((i, j))
+
     return DynamicAccountingGraph(
         **graph_kwords,
         accounts=accounts,
         node_dimension=node_dimension,
         average_balances=average_balances,
-        average_weight=average_weight
+        average_weight=average_weight,
+        possible_edges=possible_edges
     )
 
 
@@ -122,7 +129,8 @@ def train(graph, edges_by_day, last_day, iterations=1500,
         if not spontaneous_on and iteration >= spontaneous_learning_startpoint:
             spontaneous_on = True
 
-        for day, edges in edges_by_day.items():
+        for day in sorted(list(edges_by_day.keys())):
+            edges = edges_by_day[day]
             # Move the graph onto the next day, until a new
             # day that contains some edges
             while graph.time < day:
