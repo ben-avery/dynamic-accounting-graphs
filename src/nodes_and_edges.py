@@ -78,6 +78,10 @@ class Node():
         self.spontaneous_learning_rate = spontaneous_learning_rate
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
+        # Avoid division by zero errors
+        if abs(average_balance) < 0.01:
+            average_balance = 1
+
         # Create the embeddings of the node
         f_shift = find_log_exp_shift(epsilon)
         if log_exp_inverse(0.001, f_shift) < 0:
