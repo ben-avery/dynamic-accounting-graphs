@@ -1,11 +1,11 @@
 """A module with tools and helper functions
 which are useful elsewhere in the code
 """
-import math
 import numpy as np
 import functools
 
 
+@functools.lru_cache(maxsize=128, typed=False)
 def discrete_weibull_pmf(x, alpha, beta):
     """Calculate the probability of a discrete
     Weibull distribution taking a value of x
@@ -96,7 +96,6 @@ def calc_inverse_probability_delP_delIntensity(count, sum_Intensity):
     return count/sum_Intensity - 1
 
 
-#@profile
 def calc_delIntensity_delAlpha(time, alpha, beta, weight):
     """A partial derivative of the intensity by
     the alpha parameter of a Weibull distribution
@@ -183,7 +182,7 @@ def calc_delIntensity_delWeight(time, alpha, beta):
 
 
 def calc_delBaselineIntensity_delZero(linear_value, f_shift):
-    """A partial derivative of the baseline intensity by
+    """A partial derivative of the spontaneous intensity by
     the first linear parameter
 
     Args:
@@ -197,7 +196,7 @@ def calc_delBaselineIntensity_delZero(linear_value, f_shift):
 
 
 def calc_delBaselineIntensity_delOne(linear_value, source_balance, f_shift):
-    """A partial derivative of the baseline intensity by
+    """A partial derivative of the spontaneous intensity by
     the second linear parameter
 
     Args:
@@ -212,7 +211,7 @@ def calc_delBaselineIntensity_delOne(linear_value, source_balance, f_shift):
 
 
 def calc_delBaselineIntensity_delTwo(linear_value, dest_balance, f_shift):
-    """A partial derivative of the baseline intensity by
+    """A partial derivative of the spontaneous intensity by
     the third linear parameter
 
     Args:
@@ -227,11 +226,12 @@ def calc_delBaselineIntensity_delTwo(linear_value, dest_balance, f_shift):
 
 
 def calc_delBaselineDotproduct_delParam(parameter):
-    """A partial derivative of the baseline linear coefficients
-    by the relevant embeddings
+    """A partial derivative of any of the spontaneous linear
+    coefficients by the relevant embeddings
 
     Args:
-        parameter (np.array): The node embedding
+        parameter (np.array): The node embedding of the other
+            node in the dot product
 
     Returns:
         np.array: The partial derivative
@@ -242,13 +242,15 @@ def calc_delBaselineDotproduct_delParam(parameter):
 
 def calc_delCausalDotproduct_delParam(
         linear_value, node_embedding, edge_embedding, f_shift=None, g_shift=None):
-    """A partial derivative of the causal parameters
+    """A partial derivative of any of the causal parameters
     by the relevant embeddings
 
     Args:
         linear_value (float): The linear part of the function
-        node_embedding (np.array): The node embedding
-        edge_embedding (np.array): The edge embedding
+        node_embedding (np.array): The node embedding of the other
+            node in the hadamard product
+        edge_embedding (np.array): The edge embedding of the other
+            edge in the dot product
         f_shift (float): The f_shift for the log_exp function.
         f_shift (float): The g_shift for the lin_exp function.
 
@@ -256,7 +258,7 @@ def calc_delCausalDotproduct_delParam(
         np.array: The partial derivative
     """
 
-    if f_shift is None:       
+    if f_shift is None:
         return \
             lin_exp_deriv_multiplier(linear_value, g_shift) * (node_embedding*edge_embedding)
     else:
@@ -406,10 +408,10 @@ def lin_exp_function(linear_value, g_shift):
 
 
 def lin_exp_inverse(output_value, g_shift):
-    """An inverse of log_exp_function
+    """An inverse of lin_exp_function
 
     Args:
-        output_value (float): The output of the log_exp_function
+        output_value (float): The output of the lin_exp_function
         g_shift (float): Shift the original function by g_shift so
             that f(0) is a fixed value.
 
@@ -425,7 +427,7 @@ def lin_exp_inverse(output_value, g_shift):
         # Exponential portion
         return np.log(output_value) - g_shift
     else:
-        # Logarithmic portion
+        # Linear portion
         return output_value - 1 - g_shift
 
 
@@ -488,10 +490,11 @@ def adam_update(
         time, partial_deriv,
         prev_first_moment, prev_second_moment, prev_parameters,
         step_size=0.001, decay_one=0.9, decay_two=0.999,
-        regularisation_rate=10**(-8), epsilon=10**(-8)):
+        regularisation_rate=10**(-6), epsilon=10**(-8)):
     """Implementation of Adam optimisation algorithm
     Ref - Kingma, Ba, 'Adam: A Method for Stochastic Optimisation', 2014,
     https://doi.org/10.48550/arXiv.1412.6980
+    Adapted to include a weight-decay regularisation step.
 
     Args:
         time (int): The number of learning steps taken
@@ -510,7 +513,11 @@ def adam_update(
             Defaults to 0.9.
         decay_two (float, optional): Hyperparameter controlling the
             exponential decay of the second moment estimate.
-             Defaults to 0.999.
+            Defaults to 0.999.
+        regularisation_rate (float, optional): The rate at which the
+            parameter is decaying to zero for regularisation. (Applied
+            after the Adam update, to avoid interaction with momentum.)
+            Defaults to 10**(-6).
         epsilon (float, optional): Small value preventing
             division by zero.
             Defaults to 10**(-8).
@@ -523,7 +530,7 @@ def adam_update(
     # Get the adapted step size
     adapted_step_size = step_size*np.sqrt(1-decay_two**time)/(1-decay_one**time)
 
-    # Update the parameters
+    # Update the parameters (including weight-decay regularisation)
     parameters = \
         prev_parameters*(1-2*regularisation_rate) \
         - adapted_step_size*first_moment/(np.sqrt(second_moment)+epsilon)
