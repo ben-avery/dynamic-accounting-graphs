@@ -1,4 +1,4 @@
-"""Module for handling lower-level classes
+"""Module for handling embeddings
 """
 import numpy as np
 
@@ -78,19 +78,27 @@ class Node():
         self.spontaneous_learning_rate = spontaneous_learning_rate
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
-        # Avoid division by zero errors
+        # Avoid division by zero errors on initialisation
         if abs(average_balance) < 0.01:
             average_balance = 1
 
         # Create the embeddings of the node
+        # - Spontaneous embeddings
+        # - - Calculate the target dot product outputs for the initialised
+        # - - embedding values, after multiplication by the node balances
         f_shift = find_log_exp_shift(epsilon)
         if log_exp_inverse(0.001, f_shift) < 0:
-            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(-log_exp_inverse(0.001, f_shift)))
-            spontaneous_base_scaling_dest = -spontaneous_base_scaling_source
+            spontaneous_base_scaling_source = \
+                np.sqrt((1/(3*dimension))*(-log_exp_inverse(0.001, f_shift)))
+            spontaneous_base_scaling_dest = \
+                -spontaneous_base_scaling_source
         else:
-            spontaneous_base_scaling_source = np.sqrt((1/(3*dimension))*(log_exp_inverse(0.001, f_shift)))
-            spontaneous_base_scaling_dest = spontaneous_base_scaling_source
+            spontaneous_base_scaling_source = \
+                np.sqrt((1/(3*dimension))*(log_exp_inverse(0.001, f_shift)))
+            spontaneous_base_scaling_dest = \
+                spontaneous_base_scaling_source
 
+        # - - Generate the initialised source embeddings
         self.spontaneous_source_0 = \
             NodeEmbedding(
                 dimension=dimension,
@@ -113,6 +121,7 @@ class Node():
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
 
+        # - - Generate the initialised destination embeddings
         self.spontaneous_dest_0 = \
             NodeEmbedding(
                 dimension=dimension,
@@ -135,7 +144,9 @@ class Node():
                 regularisation_rate=self.spontaneous_regularisation_rate
             )
 
-
+        # - Causal embeddings
+        # - - Calculate the target dot product outputs for the initialised
+        # - - embedding values, for alpha, beta and weight
         g_shift = find_lin_exp_shift(13/2)
         if lin_exp_inverse(15/2, g_shift) < 0:
             alpha_scaling_source = (-lin_exp_inverse(15/2, g_shift)/dimension)**(0.25)
@@ -160,7 +171,7 @@ class Node():
             weight_scaling_source = (lin_exp_inverse(1/average_weight, f_shift)/dimension)**(0.25)
             weight_scaling_dest = weight_scaling_source
 
-
+        # - - Generate the initialised excitor source embeddings
         self.causal_excitor_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
@@ -183,6 +194,7 @@ class Node():
                 regularisation_rate=self.weight_regularisation_rate
             )
 
+        # - - Generate the initialised excitor destination embeddings
         self.causal_excitor_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
@@ -205,6 +217,7 @@ class Node():
                 regularisation_rate=self.weight_regularisation_rate
             )
 
+        # - - Generate the initialised excitee source embeddings
         self.causal_excitee_source_alpha = \
             NodeEmbedding(
                 dimension=dimension,
@@ -227,6 +240,7 @@ class Node():
                 regularisation_rate=self.weight_regularisation_rate
             )
 
+        # - - Generate the initialised excitee destination embeddings
         self.causal_excitee_dest_alpha = \
             NodeEmbedding(
                 dimension=dimension,
@@ -252,12 +266,15 @@ class Node():
     def increment_time(self):
         """Advance to the next day
         """
+        # Update the node's closing balance
         self.balance += self.pending_balance_changes
+
+        # Reset pending balance changes
         self.pending_balance_changes = 0
 
     def update_balance(self, change):
-        """Add a pending change to the balance, to be applied
-        at the end of the day
+        """Add a pending change to the node balance from
+        a new edge, to be applied at the end of the day
 
         Args:
             change (float): The value to change by
@@ -279,6 +296,8 @@ class Node():
                 Defaults to True.
         """
 
+        # Apply the pending gradient updates (if at the end of a training
+        # epoch) or discard them (if resetting)
         if discard_gradient_updates:
             self.clear_gradient_updates()
         else:
@@ -286,10 +305,12 @@ class Node():
                 spontaneous_on=spontaneous_on
             )
 
+        # Reset the node balance to the closing balance at the beginning
+        # of the accounting period
         self.reset_balance()
 
     def apply_gradient_updates(self, spontaneous_on=True):
-        """At the end of an epoch, update the node embeddings
+        """At the end of a training epoch, update the node embeddings
         based on the cached updates
 
         Args:
@@ -302,8 +323,11 @@ class Node():
 
         # Update the embeddings
         if spontaneous_on:
+            # No boost to the causal learning rate when the
+            # spontaneous part of the model is enabled
             causal_boost = 1
 
+            # Apply the gradient algorithm
             self.spontaneous_source_0.apply_gradient_updates()
             self.spontaneous_source_1.apply_gradient_updates()
             self.spontaneous_source_2.apply_gradient_updates()
@@ -312,8 +336,12 @@ class Node():
             self.spontaneous_dest_1.apply_gradient_updates()
             self.spontaneous_dest_2.apply_gradient_updates()
         else:
+            # Boost the causal learning rate when the
+            # spontaneous part of the model is disabled
             causal_boost = self.causal_learning_boost
 
+            # Clear any gradient updates while the spontaneous
+            # part of the model is disabled
             self.spontaneous_source_0.clear_gradient_updates()
             self.spontaneous_source_1.clear_gradient_updates()
             self.spontaneous_source_2.clear_gradient_updates()
@@ -322,6 +350,7 @@ class Node():
             self.spontaneous_dest_1.clear_gradient_updates()
             self.spontaneous_dest_2.clear_gradient_updates()
 
+        # Apply the gradient algorithm to the causal embeddings
         self.causal_excitor_source_alpha.apply_gradient_updates(
             learning_boost=causal_boost
         )
@@ -401,19 +430,20 @@ class NodeEmbedding():
     embedding for a particular node
     """
     def __init__(self, dimension, initialisation_scaling=1,
-                 learning_rate=0.001, regularisation_rate=0.01):
+                 learning_rate=0.0001, regularisation_rate=10**(-6)):
         """Initialise the class
 
         Args:
             dimension (int): The dimension of the embeddings.
             initialisation_scaling (float, optional): Scale the random
-                initialisation so that the expectation of each component
-                is equal to this value.
+                initialisation to control the dot product outputs of the
+                initial parameters. The expectation of each element of
+                the embedding vector is equal to initialisation_scaling.
                 Defaults to 1.
             learning_rate (float, optional): The learning rate for the
-                gradient ascent algorithm. Defaults to 0.001.
+                gradient algorithm. Defaults to 0.0001.
             regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty. Defaults to 0.01.
+                weight-decay regularisation penalty. Defaults to 10**(-6).
         """
 
         # Save the dimension and learning rates
@@ -439,9 +469,9 @@ class NodeEmbedding():
         embedding at the end of the epoch.
 
         Args:
-            gradient_update (np.array): The change in the source
-                node embedding, as given by the gradient ascent
-                algorithm for a single excitee
+            gradient_update (np.array): A component of the partial
+                derivative of the log-likelihood with respect
+                to this embedding.
         """
 
         # Record the cumulative change to be applied later
@@ -490,18 +520,13 @@ class NodeEmbedding():
 class EdgeEmbedder():
     """A class to combine two node embeddings into an edge embedding
     """
-    def __init__(self, input_dimension):
+    def __init__(self):
         """Initialise the class
-
-        Args:
-            input_dimension (int): The dimension of the node embeddings
         """
-
-        # Store the input dimension
-        self.input_dimension = input_dimension
+        pass
 
     def embed_edge(self, x_i, x_j):
-        """Create an edge embedding by taking the hadamard
+        """Create an edge embedding by taking the Hadamard
         product of the two node embeddings.
 
         Args:
@@ -518,16 +543,15 @@ class Comparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
-    def __init__(self, dimension, f_shift=None, g_shift=None, positive_output=True, min_at=0):
+    def __init__(self, f_shift=None, g_shift=None, positive_output=True, min_at=0):
         """Initialise the class
 
         Args:
-            dimension (int): The dimension of the embeddings
             f_shift (float): Shift the function by to achieve a certain
-                value at zero. (Only for positive_output=True).
+                value at zero. (Only required for positive_output=True).
                 Defaults to None.
             g_shift (float): Shift the function by to achieve a certain
-                value at zero. (Only for positive_output=True).
+                value at zero. (Only required for positive_output=True).
                 Defaults to None.
             positive_output (bool, optional): Whether a function should
                 be applied to the output to ensure it is positive.
@@ -538,18 +562,17 @@ class Comparer():
                 Defaults to 0.0.
         """
 
-        # Record the dimension
-        self.dimension = dimension
-
         # Record if the positive function should be applied
         self.positive_output = positive_output
+
+        # Record the lower bound for the Comparer
         self.min_at = min_at
 
         if self.positive_output:
             # To ensure that the output is positive, the result
             # of the linear function is passed through a smooth,
             # continuous function that is always positive. For
-            # the gradient-ascent algorithm, the value of the
+            # the gradient algorithm, the value of the
             # linear function is required.
             self.last_linear_value = None
 
@@ -568,11 +591,10 @@ class Comparer():
                     'provided if positive_output is True'
                 )
 
-    #@profile
     def compare_embeddings(self, e_i, e_j):
         """Return the dot product of the two embeddings. If
         self.positive_output is set, this is then passed through
-        the smooth, continuous, positive function.
+        the relevant smooth, continuous, positive function.
 
         Args:
             e_i (np.array): First embedding
@@ -586,7 +608,7 @@ class Comparer():
         linear_value = e_i @ e_j
 
         if self.positive_output:
-            # Cache this value for the gradient-ascent algorithm
+            # Cache this value for the gradient algorithm
             self.last_linear_value = linear_value
 
             # Apply the piecewise function to make the output

@@ -120,25 +120,20 @@ class DynamicAccountingGraph():
         # Create an edge embedder which turns two
         # node embeddings into an embedding for an
         # edge between the nodes
-        self.edge_embedder = EdgeEmbedder(
-            input_dimension=node_dimension
-        )
+        self.edge_embedder = EdgeEmbedder()
 
         # Set up the dot product parameter generation
         # for comparing two edge embeddings
         self.causal_comparer_weight = Comparer(
-            dimension=self.node_dimension,
             f_shift=self.f_shift_weight,
             positive_output=True
         )
         self.causal_comparer_alpha = Comparer(
-            dimension=self.node_dimension,
             g_shift=self.g_shift_alpha,
             positive_output=True,
             min_at=0.5
         )
         self.causal_comparer_beta = Comparer(
-            dimension=self.node_dimension,
             g_shift=self.g_shift_beta,
             positive_output=True,
             min_at=1.0
@@ -147,7 +142,6 @@ class DynamicAccountingGraph():
         # Set up the dot product parameter generation
         # for comparing two node embeddings
         self.spontaneous_comparer = Comparer(
-            dimension=self.node_dimension,
             positive_output=False
         )
 
