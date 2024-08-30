@@ -32,13 +32,14 @@ def find_average_balances(opening_balances, edges_by_day, last_day):
                 current_balances[i] -= weight
                 current_balances[j] += weight
 
-        # Add the current balances to the running total
+        # Add the daily closing balances to the running total
         for i, balance in current_balances.items():
             summed_balances[i] += balance
 
-    # Divide by the number of days
+    # Divide by the number of days to get the average, daily
+    # closing balance
     return {
-        i: balance/(last_day+1)
+        i: balance / (last_day + 1)
         for i, balance in summed_balances.items()
     }
 
@@ -72,14 +73,19 @@ def find_average_initial_weight(edges_by_day, last_day,
     # Calculate daily excitations
     daily_excitations = np.zeros(last_day)
 
+    # Work through each day in the accounting period
     for day in range(last_day):
         if day in edges_by_day:
             if len(edges_by_day[day]) > 0:
+                # Any day with new edges will induce an active excitation
+                # with the precalculated excitation_pattern. This pattern
+                # is added onto the daily excitation (once per edge) from
+                # the relevant day onwards.
                 daily_excitations += \
                     np.hstack((
                         np.zeros(day+1),
                         len(edges_by_day[day])*excitation_pattern[:-day-1]
                     ))
 
-    # Calculate the average
+    # Calculate the average excitation that any edge would receive
     return np.mean(daily_excitations)
