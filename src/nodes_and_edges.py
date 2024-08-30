@@ -514,7 +514,7 @@ class EdgeEmbedder():
         return x_i * x_j
 
 
-class EdgeComparer():
+class Comparer():
     """A class for generating positive, real numbers from two
     embeddings, with gradient-based learning functions
     """
