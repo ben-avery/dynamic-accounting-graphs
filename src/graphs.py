@@ -1,7 +1,7 @@
 """Main module for the Dynamic Accounting Graph class
 """
 from scipy.stats import poisson
-from numpy import log, exp
+from numpy import exp
 
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
 from excitement import Excitation
@@ -15,7 +15,7 @@ from utilities import (
     calc_delCausalDotproduct_delParam,
     calc_delBaselineDotproduct_delParam,
     log_exp_function, find_log_exp_shift,
-    lin_exp_function, find_lin_exp_shift
+    find_lin_exp_shift
 )
 
 
