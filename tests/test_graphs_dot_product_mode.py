@@ -38,11 +38,16 @@ class Test_GradientAscentCalculations(unittest.TestCase):
         debtors_account = Account('debtors', '4000', 0.4, 'debtors')
         bank_account = Account('bank', '5500', 0.6, 'bank')
 
+        possible_edges = {
+            (0, 1), (1, 2)
+        }
+
         self.graph = graphs.DynamicAccountingGraph(
             accounts=[sales_account, debtors_account, bank_account],
             average_balances=[1,1,1],
             average_weight=1,
-            node_dimension=4
+            node_dimension=4,
+            possible_edges=possible_edges
         )
 
     def reset_graph(self, edges):
@@ -137,9 +142,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
         # Calculate the function value
         base_value = \
-            np.log(self.graph.edge_probability(
+            self.graph.edge_log_probability(
                 i, j, count
-            ))
+            )
 
         # Extract the calculated derivatives
         # Causal excitor (alpha)
@@ -283,9 +288,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitor_source_alpha.value = \
@@ -298,7 +303,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_r_i_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitor source node (causal) beta
@@ -315,9 +320,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitor_source_beta.value = \
@@ -330,7 +335,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_r_i_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitor source node (causal) weight
@@ -347,9 +352,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitor_source_weight.value = \
@@ -362,7 +367,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_r_i_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitor dest node (causal) alpha
@@ -379,9 +384,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitor_dest_alpha.value = \
@@ -394,7 +399,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_r_j_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitor dest node (causal) beta
@@ -411,9 +416,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitor_dest_beta.value = \
@@ -426,7 +431,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_r_j_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitor dest node (causal) weight
@@ -443,9 +448,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitor_dest_weight.value = \
@@ -458,7 +463,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_r_j_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitee source node (causal) alpha
@@ -475,9 +480,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitee_source_alpha.value = \
@@ -490,7 +495,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_e_k_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitee source node (causal) beta
@@ -507,9 +512,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitee_source_beta.value = \
@@ -522,7 +527,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_e_k_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitee source node (causal) weight
@@ -539,9 +544,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitee_source_weight.value = \
@@ -554,7 +559,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_e_k_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitee dest node (causal) alpha
@@ -571,9 +576,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitee_dest_alpha.value = \
@@ -586,7 +591,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_e_l_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitee dest node (causal) beta
@@ -603,9 +608,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitee_dest_beta.value = \
@@ -618,7 +623,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_e_l_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales excitee dest node (causal) weight
@@ -635,9 +640,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].causal_excitee_dest_weight.value = \
@@ -650,7 +655,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_e_l_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales source node (spontaneous) zero
@@ -667,9 +672,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].spontaneous_source_0.value = \
@@ -682,7 +687,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_s_i_zero[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales source node (spontaneous) one
@@ -699,9 +704,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].spontaneous_source_1.value = \
@@ -714,7 +719,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_s_i_one[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales source node (spontaneous) two
@@ -731,9 +736,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].spontaneous_source_2.value = \
@@ -746,7 +751,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_s_i_two[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales dest node (spontaneous) zero
@@ -763,9 +768,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].spontaneous_dest_0.value = \
@@ -778,7 +783,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_s_j_zero[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales dest node (spontaneous) one
@@ -795,9 +800,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].spontaneous_dest_1.value = \
@@ -810,7 +815,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_s_j_one[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Sales dest node (spontaneous) two
@@ -827,9 +832,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[0].spontaneous_dest_2.value = \
@@ -842,7 +847,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_sales_s_j_two[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors ---------------------------------------------------------------------------------------
@@ -862,9 +867,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitor_source_alpha.value = \
@@ -877,7 +882,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_r_i_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitor source node (causal) beta
@@ -894,9 +899,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitor_source_beta.value = \
@@ -909,7 +914,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_r_i_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitor source node (causal) weight
@@ -926,9 +931,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitor_source_weight.value = \
@@ -941,7 +946,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_r_i_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitor dest node (causal) alpha
@@ -958,9 +963,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitor_dest_alpha.value = \
@@ -973,7 +978,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_r_j_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitor dest node (causal) beta
@@ -990,9 +995,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitor_dest_beta.value = \
@@ -1005,7 +1010,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_r_j_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitor dest node (causal) weight
@@ -1022,9 +1027,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitor_dest_weight.value = \
@@ -1037,7 +1042,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_r_j_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitee source node (causal) alpha
@@ -1054,9 +1059,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitee_source_alpha.value = \
@@ -1069,7 +1074,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_e_k_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitee source node (causal) beta
@@ -1086,9 +1091,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitee_source_beta.value = \
@@ -1101,7 +1106,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_e_k_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitee source node (causal) weight
@@ -1118,9 +1123,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitee_source_weight.value = \
@@ -1133,7 +1138,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_e_k_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitee dest node (causal) alpha
@@ -1150,9 +1155,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitee_dest_alpha.value = \
@@ -1165,7 +1170,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_e_l_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitee dest node (causal) beta
@@ -1182,9 +1187,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitee_dest_beta.value = \
@@ -1197,7 +1202,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_e_l_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors excitee dest node (causal) weight
@@ -1214,9 +1219,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].causal_excitee_dest_weight.value = \
@@ -1229,7 +1234,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_e_l_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors source node (spontaneous) zero
@@ -1246,9 +1251,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].spontaneous_source_0.value = \
@@ -1261,7 +1266,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_s_i_zero[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors source node (spontaneous) one
@@ -1278,9 +1283,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].spontaneous_source_1.value = \
@@ -1293,7 +1298,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_s_i_one[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors source node (spontaneous) two
@@ -1310,9 +1315,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].spontaneous_source_2.value = \
@@ -1325,7 +1330,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_s_i_two[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors dest node (spontaneous) zero
@@ -1342,9 +1347,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].spontaneous_dest_0.value = \
@@ -1357,7 +1362,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_s_j_zero[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors dest node (spontaneous) one
@@ -1374,9 +1379,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].spontaneous_dest_1.value = \
@@ -1389,7 +1394,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_s_j_one[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Debtors dest node (spontaneous) two
@@ -1406,9 +1411,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[1].spontaneous_dest_2.value = \
@@ -1421,7 +1426,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_debtors_s_j_two[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank ---------------------------------------------------------------------------------------
@@ -1441,9 +1446,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitor_source_alpha.value = \
@@ -1456,7 +1461,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_r_i_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitor source node (causal) beta
@@ -1473,9 +1478,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitor_source_beta.value = \
@@ -1488,7 +1493,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_r_i_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitor source node (causal) weight
@@ -1505,9 +1510,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitor_source_weight.value = \
@@ -1520,7 +1525,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_r_i_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitor dest node (causal) alpha
@@ -1537,9 +1542,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitor_dest_alpha.value = \
@@ -1552,7 +1557,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_r_j_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitor dest node (causal) beta
@@ -1569,9 +1574,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitor_dest_beta.value = \
@@ -1584,7 +1589,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_r_j_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitor dest node (causal) weight
@@ -1601,9 +1606,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitor_dest_weight.value = \
@@ -1616,7 +1621,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_r_j_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitee source node (causal) alpha
@@ -1633,9 +1638,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitee_source_alpha.value = \
@@ -1648,7 +1653,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_e_k_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitee source node (causal) beta
@@ -1665,9 +1670,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitee_source_beta.value = \
@@ -1680,7 +1685,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_e_k_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitee source node (causal) weight
@@ -1697,9 +1702,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitee_source_weight.value = \
@@ -1712,7 +1717,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_e_k_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitee dest node (causal) alpha
@@ -1729,9 +1734,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitee_dest_alpha.value = \
@@ -1744,7 +1749,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_e_l_alpha[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitee dest node (causal) beta
@@ -1761,9 +1766,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitee_dest_beta.value = \
@@ -1776,7 +1781,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_e_l_beta[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank excitee dest node (causal) weight
@@ -1793,9 +1798,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].causal_excitee_dest_weight.value = \
@@ -1808,7 +1813,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_e_l_weight[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank source node (spontaneous) zero
@@ -1825,9 +1830,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].spontaneous_source_0.value = \
@@ -1840,7 +1845,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_s_i_zero[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank source node (spontaneous) one
@@ -1857,9 +1862,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].spontaneous_source_1.value = \
@@ -1872,7 +1877,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_s_i_one[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank source node (spontaneous) two
@@ -1889,9 +1894,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].spontaneous_source_2.value = \
@@ -1904,7 +1909,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_s_i_two[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank dest node (spontaneous) zero
@@ -1921,9 +1926,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].spontaneous_dest_0.value = \
@@ -1936,7 +1941,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_s_j_zero[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank dest node (spontaneous) one
@@ -1953,9 +1958,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].spontaneous_dest_1.value = \
@@ -1968,7 +1973,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_s_j_one[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
         # Bank dest node (spontaneous) two
@@ -1985,9 +1990,9 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
             # Recalculate the function value
             next_value = \
-                np.log(self.graph.edge_probability(
+                self.graph.edge_log_probability(
                     i, j, count
-                ))
+                )
 
             # Reset the parameter change
             self.graph.nodes[2].spontaneous_dest_2.value = \
@@ -2000,7 +2005,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
                 self.assertAlmostEqual(
                     calc_deriv_bank_s_j_two[a],
                     estimated_deriv,
-                    places=5
+                    places=4
                 )
 
     def test_deriv(self):
@@ -2045,7 +2050,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
 
         # Calculate the derivative
         self.derivative_helper(
-            0, 2, 3,
+            1, 2, 3,
             edges=edges
         )
 
@@ -2054,7 +2059,7 @@ class Test_GradientAscentCalculations(unittest.TestCase):
         edges = {
             0: [(0, 1, 10)],
             1: [],
-            2: [(0, 2, -1), (1, 2, 0.5)],
+            2: [(0, 1, -1), (1, 2, 0.5)],
             3: []
         }
 

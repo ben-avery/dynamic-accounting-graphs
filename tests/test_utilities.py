@@ -1170,6 +1170,7 @@ class Test_Adam(unittest.TestCase):
                     prev_first_moment=prev_grad_first_moment,
                     prev_second_moment=prev_grad_second_moment,
                     prev_parameters=estimated_gradient,
+                    regularisation_rate=0,
                     step_size=0.0001
                 )
             estimated_intercept, prev_intercept_first_moment, prev_intercept_second_moment = \
@@ -1179,6 +1180,7 @@ class Test_Adam(unittest.TestCase):
                     prev_first_moment=prev_intercept_first_moment,
                     prev_second_moment=prev_intercept_second_moment,
                     prev_parameters=estimated_intercept,
+                    regularisation_rate=0,
                     step_size=0.0001
                 )
 

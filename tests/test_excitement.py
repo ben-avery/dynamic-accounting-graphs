@@ -21,7 +21,7 @@ class TestIncrementTime(unittest.TestCase):
         self.excitee_nodes=(2,3)
         self.alive_threshold=0
 
-        self.excitement = excitement.Excitement(
+        self.excitement = excitement.Excitation(
             weibull_weight=self.weibull_weight,
             weibull_alpha=self.weibull_alpha,
             weibull_beta=self.weibull_beta,
@@ -60,7 +60,7 @@ class TestIncrementTime(unittest.TestCase):
 
     def test_start_dormant(self):
         # Create a new excitement
-        new_excitement = excitement.Excitement(
+        new_excitement = excitement.Excitation(
             weibull_weight=self.weibull_weight,
             weibull_alpha=self.weibull_alpha,
             weibull_beta=self.weibull_beta,
@@ -100,7 +100,7 @@ class TestProbabilities(unittest.TestCase):
         self.excitee_nodes=(2,3)
         self.alive_threshold=0
 
-        self.excitement = excitement.Excitement(
+        self.excitement = excitement.Excitation(
             weibull_weight=self.weibull_weight,
             weibull_alpha=self.weibull_alpha,
             weibull_beta=self.weibull_beta,
@@ -164,7 +164,7 @@ class TestAliveThreshold(unittest.TestCase):
         # Set the alive threshold to be high enough to trigger early
         self.alive_threshold=0.5
 
-        self.excitement = excitement.Excitement(
+        self.excitement = excitement.Excitation(
             weibull_weight=self.weibull_weight,
             weibull_alpha=self.weibull_alpha,
             weibull_beta=self.weibull_beta,
