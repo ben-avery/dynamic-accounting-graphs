@@ -1,8 +1,8 @@
-"""Module for the Excitement class.
+"""Module for the Excitation class.
 Terminology:
  - Excitor (noun) is an edge that has the potential to excite a later edge
  - Excitee (noun) is the future edge that has been excited
- - Excitement/Excite (noun) is the state where a particular excitor edge
+ - Excitation (noun) is the state where a particular excitor edge
     has occured, and has the potential to excite a hypothetical future
     excitee edge
  - Excite (verb) is the action in which an excitor succeeds in causing an
@@ -11,7 +11,7 @@ Terminology:
 from utilities import part_weibull
 
 
-class Excitement():
+class Excitation():
     """A class to capture the relationship between an excitor edge
     that has already occured, and a hypothetical, future excitee
     edge.
@@ -24,7 +24,7 @@ class Excitement():
 
         Args:
             weibull_weight (float): The total probability of the
-                excitement being realised.
+                excitation being realised.
             weibull_alpha (float): The alpha parameter of the
                 discrete Weibull distribution, reflecting the
                 average time between excitor and excitee edges.
@@ -49,14 +49,14 @@ class Excitement():
             excitee_nodes (tuple): Node indices, (k,l), for the
                 excitee edge
             alive_threshold (float, optional): The threshold below
-                which an Excitement is considered to be dead.
+                which an Excitation is considered to be dead.
                 Defaults to 0.01.
         """
 
-        # The excitement starts off alive
+        # The excitation starts off alive
         self.alive = True
 
-        # The excitement has its own time, relative to when the
+        # The excitation has its own time, relative to when the
         # excitor edge occured
         self.time = 0
 
@@ -107,7 +107,7 @@ class Excitement():
             float: The evaluated expression
         """
         if not self.alive:
-            raise ValueError('Excitement is not alive')
+            raise ValueError('Excitation is not alive')
 
         return self.weibull_weight * part_weibull(time, self.weibull_alpha, self.weibull_beta)
 
@@ -120,7 +120,7 @@ class Excitement():
             ValueError: Will not run if the excite is already dead
         """
         if not self.alive:
-            raise ValueError('Excitement is not alive')
+            raise ValueError('Excitation is not alive')
 
         if self.dormant:
             # If this is the first time step, initialise the
@@ -158,7 +158,7 @@ class Excitement():
             ValueError: Will not run if the excite is already dead
         """
         if not self.alive:
-            raise ValueError('Excitement is not alive')
+            raise ValueError('Excitation is not alive')
 
         self.increment_probability()
 

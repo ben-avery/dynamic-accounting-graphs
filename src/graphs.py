@@ -4,7 +4,7 @@ from scipy.stats import poisson
 from numpy import log, exp
 
 from nodes_and_edges import Node, EdgeEmbedder, EdgeComparer
-from excitement import Excitement
+from excitement import Excitation
 from utilities import (
     calc_inverse_probability_delP_delIntensity,
     calc_delIntensity_delAlpha,
@@ -75,7 +75,7 @@ class DynamicAccountingGraph():
         self.spontaneous_learning_rate = spontaneous_learning_rate
         self.spontaneous_regularisation_rate = spontaneous_regularisation_rate
 
-        # Set the threshold below which excitement is seen as trivial
+        # Set the threshold below which excitation is seen as trivial
         self.excitement_threshold = 0.0001
 
         # Set the scales for the smooth, positive functions
@@ -340,7 +340,7 @@ class DynamicAccountingGraph():
                 excite.increment_time()
 
         # Remove any dead excitees (where the remaining probability
-        # of an excitement is below the threshold)
+        # of an excitation is below the threshold)
         self.current_excitees = {
             excitee: [
                 excite
@@ -398,10 +398,10 @@ class DynamicAccountingGraph():
             if excitee_nodes not in self.current_excitees:
                 self.current_excitees[excitee_nodes] = []
 
-            # Add the excitement to the list of excitements for
+            # Add the excitation to the list of excitations for
             # this pair of edges
             self.current_excitees[excitee_nodes].append(
-                Excitement(
+                Excitation(
                     weibull_weight=weibull_weight,
                     weibull_alpha=weibull_alpha,
                     weibull_beta=weibull_beta,
