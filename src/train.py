@@ -45,17 +45,21 @@ def generate_graph(raw_accounts, edges_by_day, last_day, node_dimension,
         graph_kwords (dict, optional): Any keyword arguments to set the graph
             hyperparameters. Defaults to {}.
     """
+    # Create the accounts
     accounts = [
         Account(name, number, balance, mapping)
         for name, number, balance, mapping in raw_accounts
     ]
 
+    # Find the daily average closing balance for each node
     average_balances = find_average_balances(
         opening_balances=[account_details[2] for account_details in raw_accounts],
         edges_by_day=edges_by_day,
         last_day=last_day
     )
 
+    # Find the average excitation for any edge based on the initialised
+    # values of the causal parameters
     average_weight = find_average_initial_weight(
         edges_by_day=edges_by_day,
         last_day=last_day,
@@ -63,12 +67,14 @@ def generate_graph(raw_accounts, edges_by_day, last_day, node_dimension,
         intial_beta=4
     )
 
+    # Collate all the types of edges which occur in the year
     possible_edges = set()
     for day in sorted(list(edges_by_day.keys())):
         edges = edges_by_day[day]
         for i, j, value in edges:
             possible_edges.add((i, j))
 
+    # Create and return the DynamicAccountingGraph object
     return DynamicAccountingGraph(
         **graph_kwords,
         accounts=accounts,
@@ -79,11 +85,11 @@ def generate_graph(raw_accounts, edges_by_day, last_day, node_dimension,
     )
 
 
-def train(graph, edges_by_day, last_day, iterations=1500,
+def train(graph, edges_by_day, last_day, iterations=300,
           plot_log_likelihood=True, use_tqdm=True,
-          spontaneous_learning_startpoint=500):
+          spontaneous_learning_startpoint=100):
     """Train a model maximising log-likelihood for a particular
-    set of edges, using simple gradient ascent
+    dataset, using the Adam algorithm
 
     Args:
         graph (DynamicAccountingGraph): The DynamicAccountingGraph object
@@ -94,7 +100,7 @@ def train(graph, edges_by_day, last_day, iterations=1500,
             at the end of the period with no edges so they don't appear in
             edges_by_day).
         iterations (int, optional): How many epochs to train for.
-            Defaults to 1500.
+            Defaults to 300.
         plot_log_likelihood (bool, optional): Whether to plot the log-likelihood
             over the training run.
             Defaults to True.
@@ -105,7 +111,7 @@ def train(graph, edges_by_day, last_day, iterations=1500,
             spontaneous part of the model be activated? The recommendation is to
             have this part of the model disabled for the start of the learning
             process, to encourage the causal part to dominate.
-            Defaults to 500.
+            Defaults to 100.
 
     Returns:
         log_likelihoods (list): A record of the log-likelihood at each epoch.
@@ -114,7 +120,7 @@ def train(graph, edges_by_day, last_day, iterations=1500,
     # Add the whole period's edges to the graph, calculating the
     # probability of that number of edges each day under the current
     # parameters. Then update the parameters to maximise that
-    # probability, using simple gradient ascent.
+    # probability, using a gradient-based algorithm.
     log_likelihoods = [0.0 for _ in range(iterations)]
     if use_tqdm:
         iterator = tqdm(range(iterations))
@@ -158,7 +164,7 @@ def train(graph, edges_by_day, last_day, iterations=1500,
         # Record the total log likelihood for this epoch
         log_likelihoods[iteration] = log_probability
 
-        # Update the parameters using gradient ascent, and
+        # Update the parameters using the gradient algorithm, and
         # then remove the edges and excitation ready for
         # the next epoch
         graph.reset(spontaneous_on=spontaneous_on)
