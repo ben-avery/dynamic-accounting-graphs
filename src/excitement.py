@@ -50,7 +50,7 @@ class Excitation():
                 excitee edge
             alive_threshold (float, optional): The threshold below
                 which an Excitation is considered to be dead.
-                Defaults to 0.01.
+                Defaults to 0.0001.
         """
 
         # The excitation starts off alive
