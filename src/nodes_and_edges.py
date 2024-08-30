@@ -20,9 +20,9 @@ class Node():
                  causal_learning_boost=1,
                  alpha_regularisation_rate=10**(-7),
                  beta_regularisation_rate=10**(-7),
-                 weight_regularisation_rate=5*(10**(-4)),
-                 spontaneous_learning_rate=0.00001,
-                 spontaneous_regularisation_rate=10**(-7),
+                 weight_regularisation_rate=10**(-6),
+                 spontaneous_learning_rate=0.0001,
+                 spontaneous_regularisation_rate=10**(-6),
                  meta_data=None):
         """Initialise the class
 
@@ -42,17 +42,17 @@ class Node():
             causal_learning_boost (float, optional): Multiple to boost the causal
                 learning rate by during the training of only the causal part
                 of the model (i.e. when the spontaneous part of the model is
-                deactivated). Defaults to 1.
+                deactivated). Defaults to 1 - i.e. no boost.
             alpha_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull alpha parameters. Defaults to 10**(-7).
             beta_regularisation_rate (float, optional): The weight towards the
                 L2 regularisation penalty of Weibull beta parameters. Defaults to 10**(-7).
             weight_regularisation_rate  (float, optional): The weight towards the
-                L2 regularisation penalty of Weibull weight parameters. Defaults to 5*(10**(-4)).
+                L2 regularisation penalty of Weibull weight parameters. Defaults to 10**(-6).
             spontaneous_learning_rate (float, optional): The learning rate for the
-                optimisation of spontaneous parameters. Defaults to 0.00001.
+                optimisation of spontaneous parameters. Defaults to 0.0001.
             spontaneous_regularisation_rate (float, optional): The weight towards the
-                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-7).
+                L2 regularisation penalty of spontaneous parameters. Defaults to 10**(-6).
             meta_data (dict, optional): A dictionary of other information
                 about a node which is irrelevant to the training. For example,
                 it may be useful for downstream applications to know the
